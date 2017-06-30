@@ -1,8 +1,8 @@
-import time, os, hashlib, threading, socket
-ips=['127.0.0.1']
+import time, os, hashlib, threading, socket, pickle
+ips=['127.0.0.1','192.168.1.132', '68.4.20.23']
 ports=[19200]#, 19201] # a common baud rate XD
 
-
+node_limit=20
 save_main=False# save main blockchain?
 save_sub=False # save daughter blocks?
 full_node=True # run a full node?
@@ -41,7 +41,6 @@ class Block:
                 self.difficulty=lsblock.difficulty
         self.time=int(time.time()) # EPOCH time!
         self.scratch=bytes(length)
-        self.daughter=None
         self.nextBlock=None
         self.hash=0
         self.isValid=False
@@ -102,7 +101,7 @@ def createDaughterBlock(newdata,cmt):
     daughter=Block(newdata, lsblock=TopBlock)
     mine(daughter)
     createBlock(cmt+":DAUGHTER"+str(myPublicKey.to_bytes(16, 'little'))+hex(daughter.hash))
-    TopBlock.daughter=daughter
+    daughter_blocks.append(daughter)
     return daughter
 def addData(data, cmt='uu'):
     global current_age, current_data
@@ -120,7 +119,7 @@ def addData(data, cmt='uu'):
         createBlock(current_data)
         current_data=""
         current_age=millis()
-def client_thread(cs):
+def client_thread(cs, ip):
     index=0
     while True:
         data=b''
@@ -154,6 +153,33 @@ def client_thread(cs):
                 chunk=b"NONE"
             reply=chunk
             reply=len(reply).to_bytes(8, 'little')+reply
+        elif data[:4]==b'FSB?':
+            hsh=int.from_bytes(data[4:],'little')
+            print("Getting daughter block with hash "+hex(hsh))
+            for i in daughter_blocks:
+                if i.hash==hsh:
+                    reply=i.pack()
+                    break
+            if reply==b'DONE':
+                reply=b'NONE'
+            reply=len(reply).to_bytes(8, 'little')+reply
+        elif data[:5]==b'NODES':
+            print("Requested node list...")
+            li=''
+            for i in nodes:
+                li+=i.ip+','
+            reply=li[:-1].encode()
+            reply=len(reply).to_bytes(8, 'little')+reply
+        elif data[:5]==b'IAMNODE':
+            print(ip+" is a node...")
+            done=False
+            for i in nodes:
+                if i.ip==ip:
+                    done=True
+            if (not done) and len(nodes)<=node_limit:
+                for i in ports:
+                    nodes.append(Client(ip,i))
+            reply=b'OK'
         #print("response start: "+reply.decode())
         cs.sendall(reply)
     print("A client has disconnected.")
@@ -161,12 +187,15 @@ def client_thread(cs):
 def start_new_thread(a, b):
     what=threading.Thread(target=a, args=b)
     what.start()
+running_node=False
 def server(port):
+    global running_node
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     # bind the socket to a public host, and a well-known port
     try:
         s.bind(('', port))
         print("Node on port "+str(port)+" started.")
+        running_node=True
     except:
         print("Cannot run 2 nodes on same machine.")
         return
@@ -175,7 +204,7 @@ def server(port):
     while True:
         (cs, adr) = s.accept()
         print("CONNECTED: "+adr[0]+':'+str(adr[1]))
-        start_new_thread(client_thread ,(cs,))
+        start_new_thread(client_thread ,(cs,adr[0]))
 class Client():
     def __init__(self, ip, port):
         self.ip=ip
@@ -198,6 +227,22 @@ class Client():
         while len(data)<length:
             data+=self.conn.recv(min(8192,length-len(data)))
         return data
+    def getDaughterBlock(self, h_ash):
+        self.avsend(b'FSB?'+h_ash.to_bytes(length,'little'))
+        resp=self.avrec()
+        if resp==b'NONE':
+            print("Node "+self.ip+" hasn't block "+hex(h_ash))
+            return False
+        else:
+            blk=Block('')
+            blk.unpack(resp)
+            if blk.validate() and blk.hash==h_ash:
+                print("Got daughter block "+hex(h_ash)+" from "+self.ip)
+                daughter_blocks.append(blk)
+                return True
+            else:
+                print("Invalid daughter block from "+hex(h_ash))
+                return False
     def getOneBlock(self):
         self.avsend(b'I='+len(blocks).to_bytes(length,'little'))
         if self.conn.recv(4)!=b'DONE':
@@ -210,34 +255,120 @@ class Client():
         else:
             blk=Block('')
             blk.unpack(tmp)
-            blk.lshash=blocks[len(blocks)-1].hash
+            try:
+                blk.lshash=blocks[len(blocks)-1].hash
+            except:
+                print("I think we found the genesis block...")
             if blk.validate():
                 print("Downloaded block "+hex(blk.hash))
                 blocks.append(blk)
         return False
+    def getNodes(self):
+        self.avsend(b'NODES')
+        tmp=self.avrec().decode().split(',')
+        for i in tmp:
+            if len(nodes)>=node_limit:
+                return
+            ok=True
+            for i in nodes:
+                if i.ip==i:
+                    ok=False
+                    break
+            if ok:
+                try:
+                    nodes.append(Client(i,x))
+                except:
+                    pass
     def downloadAll(self):
         print("Node "+self.ip+" downloading all blocks...")
         while not self.getOneBlock():
             pass
         print("Node "+self.ip+" hasn't yet any more blocks.")
-FirstBlock=Block("Who says data can't outlive its owners?",difficulty=1, miner=hash(11))
-FirstBlock.scratch=bytes(length)
-blocks=[FirstBlock]
+        if running_node:
+            self.avsend(b'IAMNODE')
+            self.conn.recv(2)
+blocks=[]
+daughter_blocks=[]
 nodes=[]
-for i in ips:
-    for x in ports:
-        sok=socket.socket()
-        try:
-            nodes.append(Client(i,x))
-        except:
-            pass
+def save():
+    data=[]
+    for i in blocks:
+        if i.validate():
+            data.append(i.pack())
+    for b in daughter_blocks:
+        used=False
+        for i in blocks:
+            if i.find(b.hash.to_bytes(length, 'little'))>-1 or i.find(hex(b.hash).encode())>-1:
+                used=True
+                break
+        if used and b.validate():
+            data.append(b.pack())
+    file=open("data.python_blockchain",'w')
+    file.write(str(data))
+    file.close()
+def load():
+    global blocks, daughter_blocks
+    file=open("data.python_blockchain",'r')
+    data=eval(file.read())
+    file.close()
+    orphans=[]
+    for i in data:
+        blk=Block('')
+        blk.unpack(i)
+        orphans.append(blk)
+    del data
+    did_things=True
+    blocks.append(orphans[0])
+    orphans.remove(orphans[0])
+    prev_blk=blocks[0]
+    while did_things:
+        did_things=False
+        for i in orphans:
+            if i.lshash==prev_blk.hash:
+                blocks.append(i)
+                orphans.remove(i)
+                did_things=True
+    for b in orphans:
+        used=False
+        for i in blocks:
+            if i.find(b.hash.to_bytes(length, 'little'))>-1 or i.find(hex(b.hash).encode())>-1:
+                used=True
+                break
+        if used and b.validate():
+            daughter_blocks.append(b)
+def get_nodes():
+    for i in ips:
+        if not (running_node and i in ['127.0.0.1', 'localhost']):
+            for x in ports:
+                try:
+                    nodes.append(Client(i,x))
+                except:
+                    pass
+    for i in nodes:
+        i.getNodes()
+def checker_thread():
+    while True:
+        print("Downloading...")
+        if len(nodes)==0:
+            print("Ran out of nodes...")
+            get_nodes()
+        for i in nodes:
+            i.downloadAll()
+            i.getNodes()
+        save()
+        print("Done.")
+        time.sleep(600)  # ten minutes
 if full_node:
     for port in ports:
         th=threading.Thread(target=server, args=(port,))
         th.start()
-print("Downloading...")
-for i in nodes:
-    i.downloadAll()
-print("Done.")
-while True:
-    pass
+try:
+    load()
+except:
+    print("Starting for the first time?")
+time.sleep(0.1)
+get_nodes()
+# Let's re-download the blocks from time to time.
+threading.Thread(target=checker_thread).start()
+#while True:
+    #pass
