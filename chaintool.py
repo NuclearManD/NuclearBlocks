@@ -1,12 +1,13 @@
 import time, os, hashlib, threading, socket, pickle
 ips=['127.0.0.1','192.168.1.132', '68.4.20.23']
 ports=[19200]#, 19201] # a common baud rate XD
-
 node_limit=20
+can_mine=False
 save_main=False# save main blockchain?
 save_sub=False # save daughter blocks?
-full_node=True # run a full node?
-
+full_node=False # run a full node?
+if input("Run Node? [Y/n]")=='Y':
+    full_node=True
 millis = lambda: int(round(time.time() * 1000))
 FirstBlock=None
 TopBlock=None
@@ -23,8 +24,11 @@ print("Public Key: "+hex(myPublicKey))
 length=int(bits/8)
 current_data=""
 current_age=millis()
+blocks=[]
+daughter_blocks=[]
+nodes=[]
 class Block:
-    def __init__(self, data, miner=0, lsblock=TopBlock, difficulty=None):
+    def __init__(self, data, miner=0, lsblock=None, difficulty=None):
         global allblocks
         self.data=data
         self.lsblock=lsblock
@@ -32,7 +36,11 @@ class Block:
         if difficulty!=None:
             self.difficulty=min(int(((2**bits)-1)/difficulty),(2**bits)-1)
         if self.lsblock==None:
-            self.lshash=0
+            if(len(blocks)>0 and blocks[len(blocks)-1].validate()):
+                self.lsblock=blocks[len(blocks)-1]
+                self.lshash=self.lsblock.hash
+            else:
+                self.lshash=0
             if difficulty==None:
                 self.difficulty=int((2**bits)/400000)
         else:
@@ -84,7 +92,16 @@ class Block:
         return self.validate()
 def mine(block):
     i=0
+    print("Mining a new block...")
+    timer=millis()+1000
+    cnt=millis()
+    off=0
     while not block.mineOnce():
+        if(millis()>timer):
+            timer=millis()+1000
+            print(str(int((i-off)/(millis()-cnt)))+" kH/s")
+            cnt=millis()
+            off=i
         i+=1
     print("Took "+str(i)+" attempts to mine block with hash "+hex(block.hash))
 def createBlock(newdata):
@@ -115,7 +132,7 @@ def addData(data, cmt='uu'):
         daughter=Block(newdata, lsblock=TopBlock)
         mine(daughter)
         addData(cmt+":DAUGHTER"+str(myPublicKey.to_bytes(16, 'little'))+hex(daughter.hash))
-    if len(current_data)+(3*length+24)>4090 or (current_age+300000<millis() and len(current_data>1024)):
+    if len(current_data)+(3*length+24)>4090 or (current_age+300000<millis() and len(current_data)>1024):
         createBlock(current_data)
         current_data=""
         current_age=millis()
@@ -208,10 +225,11 @@ def server(port):
 class Client():
     def __init__(self, ip, port):
         self.ip=ip
+        print("Connecting to "+str(ip)+':'+str(port)+"...")
         self.conn=socket.socket()
         self.conn.connect((ip, port))
         self.conn.sendall(b"PING")
-        if self.conn.recv(10).decode()!='OK':
+        if self.conn.recv(4).decode()!='OK':
             print("ERROR: "+str(ip)+" is not a node.")
             self.conn.close()
         else:
@@ -262,6 +280,11 @@ class Client():
             if blk.validate():
                 print("Downloaded block "+hex(blk.hash))
                 blocks.append(blk)
+            else:
+                print("Invalid block.")
+                print(blk.hash)
+                print(blocks[0].hash)
+                return True
         return False
     def getNodes(self):
         self.avsend(b'NODES')
@@ -282,14 +305,11 @@ class Client():
     def downloadAll(self):
         print("Node "+self.ip+" downloading all blocks...")
         while not self.getOneBlock():
-            pass
+            print("Possibly more blocks...")
         print("Node "+self.ip+" hasn't yet any more blocks.")
         if running_node:
             self.avsend(b'IAMNODE')
             self.conn.recv(2)
-blocks=[]
-daughter_blocks=[]
-nodes=[]
 def save():
     data=[]
     for i in blocks:
@@ -303,6 +323,9 @@ def save():
                 break
         if used and b.validate():
             data.append(b.pack())
+    if(len(data)==0):
+        print("ERROR: cannot save empty blockchain.")
+        return
     file=open("data.python_blockchain",'w')
     file.write(str(data))
     file.close()
@@ -318,24 +341,34 @@ def load():
         orphans.append(blk)
     del data
     did_things=True
-    blocks.append(orphans[0])
+    t_blks=[orphans[0]]
     orphans.remove(orphans[0])
-    prev_blk=blocks[0]
+    prev_blk=t_blks[0]
     while did_things:
         did_things=False
         for i in orphans:
             if i.lshash==prev_blk.hash:
-                blocks.append(i)
+                t_blks.append(i)
                 orphans.remove(i)
                 did_things=True
     for b in orphans:
         used=False
-        for i in blocks:
-            if i.find(b.hash.to_bytes(length, 'little'))>-1 or i.find(hex(b.hash).encode())>-1:
+        for i in t_blks:
+            if i.data.encode().find(b.hash.to_bytes(length, 'little'))>-1 or i.data.find(hex(b.hash))>-1:
                 used=True
                 break
         if used and b.validate():
             daughter_blocks.append(b)
+    for i in t_blks:
+        if not i.validate():
+            print("ERROR: saved blockchain is INVALID.")
+            return
+    if len(blocks)<len(t_blks):
+        if len(blocks)>0 and blocks[len(blocks)-1].hash!=t_blks[len(t_blks)-1].hash:
+            print("WARNING: Saved blockchain isn't the same as the one loaded.")
+        blocks=t_blks
+    else:
+        print("Blockchain loaded is longer or same size as the saved chain.")
 def get_nodes():
     for i in ips:
         if not (running_node and i in ['127.0.0.1', 'localhost']):
@@ -367,7 +400,7 @@ try:
 except:
     print("Starting for the first time?")
 time.sleep(0.1)
-get_nodes()
+#get_nodes()
 # Let's re-download the blocks from time to time.
 threading.Thread(target=checker_thread).start()
 #while True:
