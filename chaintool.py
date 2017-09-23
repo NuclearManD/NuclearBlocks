@@ -7,7 +7,7 @@ can_mine=False
 save_main=False# save main blockchain?
 save_sub=False # save daughter blocks?
 full_node=False # run a full node?
-if input("Run Node? [Y/n]")=='Y':
+if __name__=="__main__" and input("Run Node? [Y/n]")=='Y':
     full_node=True
 millis = lambda: int(round(time.time() * 1000))
 FirstBlock=None
@@ -138,6 +138,7 @@ def addData(data, cmt='uu'):
         current_data=""
         current_age=millis()
 def client_thread(cs, ip):
+    global solved
     index=0
     while True:
         data=b''
@@ -205,8 +206,10 @@ def client_thread(cs, ip):
                 b.unpack(data[3:])
                 if b.validate() and blocks[len(blocks)-1].hash==b.lshash:
                     blocks.append(b)
+                    solved=True
                 else:
                     print("  That was an invalid block.")
+                    print("  > Hash was "+hex(b.hash))
             except:
                 print("  Error unpacking block from client.")
         #print("response start: "+reply.decode())
@@ -217,8 +220,9 @@ def start_new_thread(a, b):
     what=threading.Thread(target=a, args=b)
     what.start()
 running_node=False
+cs_list=[]
 def server(port):
-    global running_node
+    global running_node, cs_list
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     # bind the socket to a public host, and a well-known port
     try:
@@ -234,6 +238,7 @@ def server(port):
         (cs, adr) = s.accept()
         print("CONNECTED: "+adr[0]+':'+str(adr[1]))
         start_new_thread(client_thread ,(cs,adr[0]))
+        cs_list.append(cs)
 class Client():
     def __init__(self, ip, port):
         self.ip=ip
@@ -323,8 +328,14 @@ class Client():
             self.avsend(b'IAMNODE')
             self.conn.recv(2)
     def submit(self,block):
-        self.avsend(b'SUB')
-        self.avsend(block.pack())
+        self.avsend(b'SUB'+block.pack())
+    def wait_for_mine(self):
+        while True:
+            if self.conn.recv(4)==b'MINE':
+                print("Mining request received.")
+                tmp=Block('')
+                tmp.unpack(self.avrec())
+                return tmp
 def save():
     data=[]
     for i in blocks:
@@ -392,8 +403,12 @@ def get_nodes():
                     nodes.append(Client(i,x))
                 except:
                     pass
+                if len(nodes)>=node_limit:
+                    return
     for i in nodes:
         i.getNodes()
+        if len(nodes)>=node_limit:
+            return
 def checker_thread():
     while True:
         print("Downloading...")
@@ -406,17 +421,47 @@ def checker_thread():
         save()
         print("Done.")
         time.sleep(600)  # ten minutes
-if full_node:
-    for port in ports:
-        th=threading.Thread(target=server, args=(port,))
-        th.start()
-try:
-    load()
-except:
-    print("Starting for the first time?")
-time.sleep(0.1)
-#get_nodes()
-# Let's re-download the blocks from time to time.
-threading.Thread(target=checker_thread).start()
-#while True:
-    #pass
+solved=True
+times=[]
+difficulties=[]
+def mine_remote(block):
+    global solved, times, difficulties
+    try:
+        while not solved:  # wait for mining job to complete
+            pass
+        solved=False
+        rml=[]
+        for i in cs_list:
+            print("Giving job to "+str(i.getpeername()))
+            reply=block.pack()
+            reply=b'MINE'+len(reply).to_bytes(8, 'little')+reply
+            try:
+                i.sendall(reply)
+            except:
+                rml.append(i)
+        for i in rml:
+            cs_list.remove(i) # different loop to prevent iteration issues
+        t=millis()
+        while not solved:
+            pass
+        times.append(millis()-t)
+        diculties.append(block.difficulty)
+    except:
+        solved=True # on error fix solved so that next usage of the function will work
+def start():
+    if full_node:
+        for port in ports:
+            th=threading.Thread(target=server, args=(port,))
+            th.start()
+    try:
+        load()
+    except:
+        print("Starting for the first time?")
+    time.sleep(0.1)
+    #get_nodes()
+    # Let's re-download the blocks from time to time.
+    threading.Thread(target=checker_thread).start()
+    #while True:
+        #pass
+if __name__=="__main__":
+    start()
