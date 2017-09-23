@@ -2,6 +2,7 @@ import time, os, hashlib, threading, socket, pickle
 ips=['127.0.0.1','192.168.1.132', '68.4.20.23']
 ports=[19200]#, 19201] # a common baud rate XD
 node_limit=20
+hashrate=0
 can_mine=False
 save_main=False# save main blockchain?
 save_sub=False # save daughter blocks?
@@ -197,6 +198,17 @@ def client_thread(cs, ip):
                 for i in ports:
                     nodes.append(Client(ip,i))
             reply=b'OK'
+        elif data[:3]==b'SUB':
+            try:
+                print("Client is submitting a new block to the chain...")
+                b=Block('')
+                b.unpack(data[3:])
+                if b.validate() and blocks[len(blocks)-1].hash==b.lshash:
+                    blocks.append(b)
+                else:
+                    print("  That was an invalid block.")
+            except:
+                print("  Error unpacking block from client.")
         #print("response start: "+reply.decode())
         cs.sendall(reply)
     print("A client has disconnected.")
@@ -230,10 +242,10 @@ class Client():
         self.conn.connect((ip, port))
         self.conn.sendall(b"PING")
         if self.conn.recv(4).decode()!='OK':
-            print("ERROR: "+str(ip)+" is not a node.")
+            print("  ERROR: "+str(ip)+" is not a node.")
             self.conn.close()
         else:
-            print("Node discovered: "+ip+':'+str(port))
+            print("  Node discovered: "+ip+':'+str(port))
     def avsend(self, data):
         self.conn.sendall(len(data).to_bytes(8, 'little'))
         self.conn.sendall(data)
@@ -310,6 +322,9 @@ class Client():
         if running_node:
             self.avsend(b'IAMNODE')
             self.conn.recv(2)
+    def submit(self,block):
+        self.avsend(b'SUB')
+        self.avsend(block.pack())
 def save():
     data=[]
     for i in blocks:
