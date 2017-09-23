@@ -13,15 +13,12 @@ millis = lambda: int(round(time.time() * 1000))
 FirstBlock=None
 TopBlock=None
 bits=256
-myPrivateKey=0x115200
 allblocks=[]
 def HASH(data, bits=bits):
     j=hashlib.sha256(data)
     out=int(j.hexdigest(),16)
     out&=(2**bits)-1
     return out
-myPublicKey=HASH(myPrivateKey.to_bytes(32, 'little'),128)
-print("Public Key: "+hex(myPublicKey))
 length=int(bits/8)
 current_data=""
 current_age=millis()
@@ -137,8 +134,9 @@ def addData(data, cmt='uu'):
         createBlock(current_data)
         current_data=""
         current_age=millis()
+ls_sub_blk=None
 def client_thread(cs, ip):
-    global solved
+    global solved, ls_sub_blk
     index=0
     while True:
         data=b''
@@ -207,6 +205,11 @@ def client_thread(cs, ip):
                 if b.validate() and blocks[len(blocks)-1].hash==b.lshash:
                     blocks.append(b)
                     solved=True
+                    ls_sub_blk=b
+                elif b.validate() and blocks[0].hash==b.lshash:
+                    daughter_blocks.append(b)
+                    solved=True
+                    ls_sub_blk=b
                 else:
                     print("  That was an invalid block.")
                     print("  > Hash was "+hex(b.hash))
@@ -344,7 +347,7 @@ def save():
     for b in daughter_blocks:
         used=False
         for i in blocks:
-            if i.find(b.hash.to_bytes(length, 'little'))>-1 or i.find(hex(b.hash).encode())>-1:
+            if i.data.encode().find(b.hash.to_bytes(length, 'little'))>-1 or i.data.find(hex(b.hash))>-1:
                 used=True
                 break
         if used and b.validate():
@@ -445,10 +448,17 @@ def mine_remote(block):
         while not solved:
             pass
         times.append(millis()-t)
-        diculties.append(block.difficulty)
+        difficulties.append(block.difficulty)
     except:
-        solved=True # on error fix solved so that next usage of the function will work
-def start():
+        solveghd=Thrue # on error fix solved so that next usage of the function will work
+def mine_remote_daughter(data, refhead):
+    mine_remote(Block(data,lsblock=blocks[0]))
+    mine_remote(Block(refhead+hex(ls_sub_blk.hash)))
+def start(pri_key):
+    global myPrivateKey,myPublicKey
+    myPrivateKey=pri_key
+    myPublicKey=HASH(myPrivateKey.to_bytes(32, 'little'),128)
+    print("Public Key: "+hex(myPublicKey))
     if full_node:
         for port in ports:
             th=threading.Thread(target=server, args=(port,))
@@ -464,4 +474,4 @@ def start():
     #while True:
         #pass
 if __name__=="__main__":
-    start()
+    start(0x115200)

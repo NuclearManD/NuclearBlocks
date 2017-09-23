@@ -2,7 +2,7 @@ import chaintool, threading, time
 print("Finding hashrate....")
 chaintool.node_limit=1 # accept only from one node
 chaintool.nodes=[]
-chaintool.start()
+chaintool.start(0x115200)
 millis=chaintool.millis
 b=chaintool.Block("getHashes/s",difficulty=int((2**chaintool.bits)/800000))
 t=millis()
@@ -20,10 +20,11 @@ def get_job():
     while True:
         try:
             block = chaintool.nodes[0].wait_for_mine()
+            print("Received new mining job...")
         except:
             time.sleep(0.5)
+            chaintool.nodes=[]
             chaintool.get_nodes()
-        print("Received new mining job...")
 threading.Thread(target=get_job).start()
 while True:
     timer=millis()+1000
