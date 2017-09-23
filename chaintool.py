@@ -380,14 +380,15 @@ def load():
                 t_blks.append(i)
                 orphans.remove(i)
                 did_things=True
+    orphans_removed=0
     for b in orphans:
-        used=False
-        for i in t_blks:
-            if i.data.encode().find(b.hash.to_bytes(length, 'little'))>-1 or i.data.find(hex(b.hash))>-1:
-                used=True
-                break
-        if used and b.validate():
+        if b.validate():
             daughter_blocks.append(b)
+            orphans_removed+=1
+        else:
+            print("Found an invalid block saved!")
+    if orphans_removed<len(orphans):
+        print("WARNING: Orphaned blocks were left over!")
     for i in t_blks:
         if not i.validate():
             print("ERROR: saved blockchain is INVALID.")
