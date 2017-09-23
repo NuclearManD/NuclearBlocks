@@ -123,15 +123,13 @@ def addData(data, cmt='uu'):
     if len(current_data+data)<(4096-(3*length+28)):
         current_data+=(hex(len(data))[2:]).zfill(4)+data
     elif len(data)<(4096-(3*length+28)):
-        createBlock(current_data)
+        mine_remote(Block(current_data))
         current_data=(hex(len(data))[2:]).zfill(4)+data
         current_age=millis()
     else:
-        daughter=Block(newdata, lsblock=TopBlock)
-        mine(daughter)
-        addData(cmt+":DAUGHTER"+str(myPublicKey.to_bytes(16, 'little'))+hex(daughter.hash))
+        mine_remote_daughter(newdata, cmt+":"+str(myPublicKey.to_bytes(16, 'little'))+hex(daughter.hash)+';')
     if len(current_data)+(3*length+24)>4090 or (current_age+300000<millis() and len(current_data)>1024):
-        createBlock(current_data)
+        mine_remote(Block(current_data))
         current_data=""
         current_age=millis()
 ls_sub_blk=None
@@ -187,6 +185,8 @@ def client_thread(cs, ip):
                 li+=i.ip+','
             reply=li[:-1].encode()
             reply=len(reply).to_bytes(8, 'little')+reply
+        elif data[:6]==b'APPEND':
+            addData(data[6:])
         elif data[:5]==b'IAMNODE':
             print(ip+" is a node...")
             done=False
@@ -339,6 +339,8 @@ class Client():
                 tmp=Block('')
                 tmp.unpack(self.avrec())
                 return tmp
+    def save(self, data):
+        self.avsend(b'APPEND'+data)
 def save():
     data=[]
     for i in blocks:
