@@ -206,10 +206,12 @@ def client_thread(cs, ip):
                     blocks.append(b)
                     solved=True
                     ls_sub_blk=b
+                    save()
                 elif b.validate() and blocks[0].hash==b.lshash:
                     daughter_blocks.append(b)
                     solved=True
                     ls_sub_blk=b
+                    save()
                 else:
                     print("  That was an invalid block.")
                     print("  > Hash was "+hex(b.hash))
@@ -452,10 +454,10 @@ def mine_remote(block):
         solved=False
         rml=[]
         for i in cs_list:
-            print("Giving job to "+str(i.getpeername()))
-            reply=block.pack()
-            reply=b'MINE'+len(reply).to_bytes(8, 'little')+reply
             try:
+                print("Giving job to "+str(i.getpeername()))
+                reply=block.pack()
+                reply=b'MINE'+len(reply).to_bytes(8, 'little')+reply
                 i.sendall(reply)
             except:
                 rml.append(i)
@@ -467,7 +469,7 @@ def mine_remote(block):
         times.append(millis()-t)
         difficulties.append(block.difficulty)
     except:
-        solveghd=Thrue # on error fix solved so that next usage of the function will work
+        solved=True # on error fix solved so that next usage of the function will work
 def mine_remote_daughter(data, refhead):
     mine_remote(Block(data,lsblock=blocks[0]))
     mine_remote(Block(refhead+hex(ls_sub_blk.hash)))
