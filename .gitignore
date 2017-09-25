@@ -50,3 +50,4 @@ pk.int
 data.python_blockchain
 *.python_blockchain
 data.python_blockchain
+*.pyc
