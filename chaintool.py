@@ -206,10 +206,12 @@ def client_thread(cs, ip):
                     blocks.append(b)
                     solved=True
                     ls_sub_blk=b
+                    save()
                 elif b.validate() and blocks[0].hash==b.lshash:
                     daughter_blocks.append(b)
                     solved=True
                     ls_sub_blk=b
+                    save()
                 else:
                     print("  That was an invalid block.")
                     print("  > Hash was "+hex(b.hash))
@@ -252,8 +254,10 @@ class Client():
         if self.conn.recv(4).decode()!='OK':
             print("  ERROR: "+str(ip)+" is not a node.")
             self.conn.close()
+            self.inUse=True
         else:
             print("  Node discovered: "+ip+':'+str(port))
+            self.inUse=False
     def avsend(self, data):
         self.conn.sendall(len(data).to_bytes(8, 'little'))
         self.conn.sendall(data)
@@ -266,8 +270,10 @@ class Client():
             data+=self.conn.recv(min(8192,length-len(data)))
         return data
     def getDaughterBlock(self, h_ash):
+        self.inUse=True # stop polling processes
         self.avsend(b'FSB?'+h_ash.to_bytes(length,'little'))
         resp=self.avrec()
+        self.inUse=False # resume polling processes
         if resp==b'NONE':
             print("Node "+self.ip+" hasn't block "+hex(h_ash))
             return False
@@ -282,12 +288,14 @@ class Client():
                 print("Invalid daughter block from "+hex(h_ash))
                 return False
     def getOneBlock(self):
+        self.inUse=True # stop polling processes
         self.avsend(b'I='+len(blocks).to_bytes(length,'little'))
         if self.conn.recv(4)!=b'DONE':
             print("ERROR: Node "+self.ip+" is no longer valid.")
             return True
         self.avsend(b'GBLK')
         tmp=self.avrec()
+        self.inUse=False # resume polling processes
         if tmp==b'NONE':
             return True
         else:
@@ -307,8 +315,10 @@ class Client():
                 return True
         return False
     def getNodes(self):
+        self.inUse=True # stop polling processes
         self.avsend(b'NODES')
         tmp=self.avrec().decode().split(',')
+        self.inUse=False # resume polling processes
         for i in tmp:
             if len(nodes)>=node_limit:
                 return
@@ -328,12 +338,16 @@ class Client():
             print("Possibly more blocks...")
         print("Node "+self.ip+" hasn't yet any more blocks.")
         if running_node:
+            self.inUse=True # stop polling processes
             self.avsend(b'IAMNODE')
             self.conn.recv(2)
+            self.inUse=False # resume polling processes
     def submit(self,block):
         self.avsend(b'SUB'+block.pack())
     def wait_for_mine(self):
         while True:
+            if self.inUse:
+                continue
             if self.conn.recv(4)==b'MINE':
                 print("Mining request received.")
                 tmp=Block('')
@@ -418,6 +432,7 @@ def get_nodes():
 def checker_thread():
     while True:
         print("Downloading...")
+        old_len=len(nodes)
         if len(nodes)==0:
             print("Ran out of nodes...")
             get_nodes()
@@ -425,6 +440,9 @@ def checker_thread():
             i.downloadAll()
             i.getNodes()
         save()
+        if full_node:
+            for i in range(old_len, len(nodes)):
+                threading.Thread(target=node_mining_thread, args=(i,)).start()
         print("Done.")
         time.sleep(600)  # ten minutes
 solved=True
@@ -438,10 +456,10 @@ def mine_remote(block):
         solved=False
         rml=[]
         for i in cs_list:
-            print("Giving job to "+str(i.getpeername()))
-            reply=block.pack()
-            reply=b'MINE'+len(reply).to_bytes(8, 'little')+reply
             try:
+                print("Giving job to "+str(i.getpeername()))
+                reply=block.pack()
+                reply=b'MINE'+len(reply).to_bytes(8, 'little')+reply
                 i.sendall(reply)
             except:
                 rml.append(i)
@@ -453,10 +471,24 @@ def mine_remote(block):
         times.append(millis()-t)
         difficulties.append(block.difficulty)
     except:
-        solveghd=Thrue # on error fix solved so that next usage of the function will work
+        solved=True # on error fix solved so that next usage of the function will work
 def mine_remote_daughter(data, refhead):
     mine_remote(Block(data,lsblock=blocks[0]))
     mine_remote(Block(refhead+hex(ls_sub_blk.hash)))
+def node_mining_thread(i):
+    while True:
+        blk=i.wait_for_mine()
+        do_mine=True
+        for j in blocks[-5:]:
+            if j.data==blk.data:
+                if True:#j.validate():
+                    i.submit(j)
+                    do_mine=False
+                    break
+                #else:
+                #    print("ERROR: block with data containing "+str(blk.data[:10])+"is in the blockchain but is invalid!")
+        if do_mine:
+            mine_remote(blk)
 def start(pri_key):
     global myPrivateKey,myPublicKey
     myPrivateKey=pri_key
@@ -471,10 +503,24 @@ def start(pri_key):
     except:
         print("Starting for the first time?")
     time.sleep(0.1)
-    #get_nodes()
     # Let's re-download the blocks from time to time.
     threading.Thread(target=checker_thread).start()
     #while True:
         #pass
 if __name__=="__main__":
-    start(0x115200)
+    tmp=0
+    try:
+        j=open("pk.int",'r')
+        tmp=int(j.read())
+        j.close()
+    except:
+        print("No private key file!")
+        if input("Type 'Y' to generate a new key, 'n' to enter a key manually ")=='Y':
+            tmp=int.from_bytes(os.urandom(32),'little')
+        else:
+            tmp=int(input("NEW KEY > "))
+        j=open("pk.int",'w')
+        j.write(str(myPrivateKey))
+        j.close()
+        print("Saved.")
+    start(tmp)
