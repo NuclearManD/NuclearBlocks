@@ -475,4 +475,19 @@ def start(pri_key):
     #while True:
         #pass
 if __name__=="__main__":
-    start(0x115200)
+    tmp=0
+    try:
+        j=open("pk.int",'r')
+        tmp=int(j.read())
+        j.close()
+    except:
+        print("No private key file!")
+        if input("Type 'Y' to generate a new key, 'n' to enter a key manually ")=='Y':
+            tmp=int.from_bytes(os.urandom(32),'little')
+        else:
+            tmp=int(input("NEW KEY > "))
+        j=open("pk.int",'w')
+        j.write(str(myPrivateKey))
+        j.close()
+        print("Saved.")
+    start(tmp)
