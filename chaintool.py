@@ -219,7 +219,7 @@ def client_thread(cs, ip):
                 print("  Error unpacking block from client.")
         #print("response start: "+reply.decode())
         cs.sendall(reply)
-    print("A client has disconnected.")
+    print("Client "+ip+" has disconnected.")
     cs.close()
 def start_new_thread(a, b):
     what=threading.Thread(target=a, args=b)
@@ -258,6 +258,11 @@ class Client():
         else:
             print("  Node discovered: "+ip+':'+str(port))
             self.inUse=False
+            if running_node:
+                self.inUse=True # stop polling processes
+                self.avsend(b'IAMNODE')
+                self.conn.recv(2)
+                self.inUse=False # resume polling processes
     def avsend(self, data):
         self.conn.sendall(len(data).to_bytes(8, 'little'))
         self.conn.sendall(data)
@@ -332,16 +337,16 @@ class Client():
                     nodes.append(Client(i,x))
                 except:
                     pass
-    def downloadAll(self):
-        print("Node "+self.ip+" downloading all blocks...")
-        while not self.getOneBlock():
-            print("Possibly more blocks...")
-        print("Node "+self.ip+" hasn't yet any more blocks.")
         if running_node:
             self.inUse=True # stop polling processes
             self.avsend(b'IAMNODE')
             self.conn.recv(2)
             self.inUse=False # resume polling processes
+    def downloadAll(self):
+        print("Node "+self.ip+" downloading all blocks...")
+        while not self.getOneBlock():
+            print("Possibly more blocks...")
+        print("Node "+self.ip+" hasn't yet any more blocks.")
     def submit(self,block):
         self.avsend(b'SUB'+block.pack())
     def wait_for_mine(self):
@@ -518,9 +523,9 @@ if __name__=="__main__":
         if input("Type 'Y' to generate a new key, 'n' to enter a key manually ")=='Y':
             tmp=int.from_bytes(os.urandom(32),'little')
         else:
-            tmp=int(input("NEW KEY > "))
+            tmp=eval(input("NEW KEY > "))
         j=open("pk.int",'w')
-        j.write(str(myPrivateKey))
+        j.write(str(tmp))
         j.close()
         print("Saved.")
     start(tmp)
