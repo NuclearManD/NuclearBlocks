@@ -124,7 +124,7 @@ def createDaughterBlock(newdata,cmt):
     createBlock(cmt+":DAUGHTER"+str(myPublicKey.to_bytes(16, 'little'))+hex(daughter.hash))
     daughter_blocks.append(daughter)
     return daughter
-def addData(data, cmt='uu'):
+def addData(data):
     global current_age, current_data
     if len(current_data+data)<(4096-(3*length+28)):
         current_data+=(hex(len(data))[2:]).zfill(4)+data
@@ -133,8 +133,8 @@ def addData(data, cmt='uu'):
         current_data=(hex(len(data))[2:]).zfill(4)+data
         current_age=millis()
     else:
-        mine_remote_daughter(newdata, cmt+":"+str(myPublicKey.to_bytes(16, 'little'))+hex(daughter.hash)+';')
-    if len(current_data)+(3*length+24)>4090 or (current_age+300000<millis() and len(current_data)>1024):
+        error("Cannot submit that much data.")#mine_remote_daughter(newdata, cmt+":"+str(myPublicKey.to_bytes(16, 'little'))+hex(daughter.hash)+';')
+    if len(current_data)+(3*length+24)>4090 or (current_age+120000<millis() and len(current_data)>1024):
         mine_remote(Block(current_data))
         current_data=""
         current_age=millis()
@@ -192,7 +192,11 @@ def client_thread(cs, ip):
             reply=li[:-1].encode()
             reply=len(reply).to_bytes(8, 'little')+reply
         elif data[:6]==b'APPEND':
-            addData(data[6:])
+            threading.Thread(target=addData, args=(data[6:]))
+        elif data[:6]==b'STORE':
+            data=data[6:]
+            pos=int.from_bytes(data[:8],"little")+8
+            threading.Thread(target=mine_remote_daughter, args=(data[8:pos],data[pos:]))
         elif data[:5]==b'IAMNODE':
             info("["+ip+"] "+ip+" is a node...")
             done=False
@@ -355,6 +359,8 @@ class Client():
         info("Node "+self.ip+" hasn't yet any more blocks.")
     def submit(self,block):
         self.avsend(b'SUB'+block.pack())
+    def upload(self, data, head):
+        self.avsend(b"STORE"+len(data).to_bytes(8, 'little')+data+head)
     def wait_for_mine(self):
         while True:
             if self.inUse:
