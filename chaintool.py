@@ -25,6 +25,12 @@ current_age=millis()
 blocks=[]
 daughter_blocks=[]
 nodes=[]
+def info(x):
+    print("[INFO]  "+x)
+def warn(x):
+    print("[WARN]  "+x)
+def error(x):
+    print("[ERROR] "+x)
 class Block:
     def __init__(self, data, miner=0, lsblock=None, difficulty=None):
         global allblocks
@@ -90,22 +96,22 @@ class Block:
         return self.validate()
 def mine(block):
     i=0
-    print("Mining a new block...")
+    info("Mining a new block...")
     timer=millis()+1000
     cnt=millis()
     off=0
     while not block.mineOnce():
         if(millis()>timer):
             timer=millis()+1000
-            print(str(int((i-off)/(millis()-cnt)))+" kH/s")
+            info(str(int((i-off)/(millis()-cnt)))+" kH/s")
             cnt=millis()
             off=i
         i+=1
-    print("Took "+str(i)+" attempts to mine block with hash "+hex(block.hash))
+    info("Took "+str(i)+" attempts to mine block with hash "+hex(block.hash))
 def createBlock(newdata):
     global TopBlock
     if len(newdata)>4096:
-        print("Block too big!")
+        error("Block too big!")
         return
     TopBlock=Block(newdata, lsblock=TopBlock)
     mine(TopBlock)
@@ -153,15 +159,15 @@ def client_thread(cs, ip):
             data+=cs.recv(min(8192,length-len(data)))
         reply=b'DONE'
         if data==b"PING":
-            print("Pinged.")
+            info("["+ip+"] Pinged.")
             reply=b'OK'
         elif data[:2]==b'I=':
             data=data[2:]
             index=int.from_bytes(data[:8],"little")
             reply=b'DONE'
-            print("I set to "+str(index))
+            info("["+ip+"] I set to "+str(index))
         elif data==b"GBLK":
-            print("Block requested.")
+            info("["+ip+"] Block requested.")
             if len(blocks)>index:
                 chunk=blocks[index].pack()
             else:
@@ -170,7 +176,7 @@ def client_thread(cs, ip):
             reply=len(reply).to_bytes(8, 'little')+reply
         elif data[:4]==b'FSB?':
             hsh=int.from_bytes(data[4:],'little')
-            print("Getting daughter block with hash "+hex(hsh))
+            info("["+ip+"] Getting daughter block with hash "+hex(hsh))
             for i in daughter_blocks:
                 if i.hash==hsh:
                     reply=i.pack()
@@ -179,7 +185,7 @@ def client_thread(cs, ip):
                 reply=b'NONE'
             reply=len(reply).to_bytes(8, 'little')+reply
         elif data[:5]==b'NODES':
-            print("Requested node list...")
+            info("["+ip+"] Requested node list...")
             li=''
             for i in nodes:
                 li+=i.ip+','
@@ -188,7 +194,7 @@ def client_thread(cs, ip):
         elif data[:6]==b'APPEND':
             addData(data[6:])
         elif data[:5]==b'IAMNODE':
-            print(ip+" is a node...")
+            info("["+ip+"] "+ip+" is a node...")
             done=False
             for i in nodes:
                 if i.ip==ip:
@@ -199,7 +205,7 @@ def client_thread(cs, ip):
             reply=b'OK'
         elif data[:3]==b'SUB':
             try:
-                print("Client is submitting a new block to the chain...")
+                info("["+ip+"] Submitting a new block to the chain...")
                 b=Block('')
                 b.unpack(data[3:])
                 if b.validate() and blocks[len(blocks)-1].hash==b.lshash:
@@ -213,13 +219,13 @@ def client_thread(cs, ip):
                     ls_sub_blk=b
                     save()
                 else:
-                    print("  That was an invalid block.")
-                    print("  > Hash was "+hex(b.hash))
+                    warn("  That was an invalid block.")
+                    warn("  > Hash was "+hex(b.hash))
             except:
-                print("  Error unpacking block from client.")
+                error("  Error unpacking block from client.")
         #print("response start: "+reply.decode())
         cs.sendall(reply)
-    print("Client "+ip+" has disconnected.")
+    info("Client "+ip+" has disconnected.")
     cs.close()
 def start_new_thread(a, b):
     what=threading.Thread(target=a, args=b)
@@ -232,37 +238,39 @@ def server(port):
     # bind the socket to a public host, and a well-known port
     try:
         s.bind(('', port))
-        print("Node on port "+str(port)+" started.")
+        info("Node on port "+str(port)+" started.")
         running_node=True
     except:
-        print("Cannot run 2 nodes on same machine.")
+        error("Cannot run 2 nodes on same machine.")
         return
     # become a server socket
     s.listen(5)
     while True:
         (cs, adr) = s.accept()
-        print("CONNECTED: "+adr[0]+':'+str(adr[1]))
+        info("CONNECTED: "+adr[0]+':'+str(adr[1]))
         start_new_thread(client_thread ,(cs,adr[0]))
         cs_list.append(cs)
 class Client():
     def __init__(self, ip, port):
         self.ip=ip
-        print("Connecting to "+str(ip)+':'+str(port)+"...")
+        info("Connecting to "+str(ip)+':'+str(port)+"...")
         self.conn=socket.socket()
+        self.conn.set_timeout(6)
         self.conn.connect((ip, port))
         self.conn.sendall(b"PING")
         if self.conn.recv(4).decode()!='OK':
-            print("  ERROR: "+str(ip)+" is not a node.")
+            error(str(ip)+" is not a node.")
             self.conn.close()
             self.inUse=True
         else:
-            print("  Node discovered: "+ip+':'+str(port))
+            info("  Node discovered: "+ip+':'+str(port))
             self.inUse=False
             if running_node:
                 self.inUse=True # stop polling processes
                 self.avsend(b'IAMNODE')
                 self.conn.recv(2)
                 self.inUse=False # resume polling processes
+                threading.Thread(target=node_mining_thread,args=(self,))
     def avsend(self, data):
         self.conn.sendall(len(data).to_bytes(8, 'little'))
         self.conn.sendall(data)
@@ -280,23 +288,23 @@ class Client():
         resp=self.avrec()
         self.inUse=False # resume polling processes
         if resp==b'NONE':
-            print("Node "+self.ip+" hasn't block "+hex(h_ash))
+            info("Node "+self.ip+" hasn't block "+hex(h_ash))
             return False
         else:
             blk=Block('')
             blk.unpack(resp)
             if blk.validate() and blk.hash==h_ash:
-                print("Got daughter block "+hex(h_ash)+" from "+self.ip)
+                info("Got daughter block "+hex(h_ash)+" from "+self.ip)
                 daughter_blocks.append(blk)
                 return True
             else:
-                print("Invalid daughter block from "+hex(h_ash))
+                error("Invalid daughter block from "+hex(h_ash))
                 return False
     def getOneBlock(self):
         self.inUse=True # stop polling processes
         self.avsend(b'I='+len(blocks).to_bytes(length,'little'))
         if self.conn.recv(4)!=b'DONE':
-            print("ERROR: Node "+self.ip+" is no longer valid.")
+            error("Node "+self.ip+" is no longer valid.")
             return True
         self.avsend(b'GBLK')
         tmp=self.avrec()
@@ -309,14 +317,12 @@ class Client():
             try:
                 blk.lshash=blocks[len(blocks)-1].hash
             except:
-                print("I think we found the genesis block...")
+                info("I think we found the genesis block...")
             if blk.validate():
-                print("Downloaded block "+hex(blk.hash))
+                info("Downloaded block "+hex(blk.hash))
                 blocks.append(blk)
             else:
-                print("Invalid block.")
-                print(blk.hash)
-                print(blocks[0].hash)
+                error("Invalid block sent from node "+self.ip+".")
                 return True
         return False
     def getNodes(self):
@@ -343,18 +349,18 @@ class Client():
             self.conn.recv(2)
             self.inUse=False # resume polling processes
     def downloadAll(self):
-        print("Node "+self.ip+" downloading all blocks...")
+        info("Node "+self.ip+" downloading all blocks...")
         while not self.getOneBlock():
-            print("Possibly more blocks...")
-        print("Node "+self.ip+" hasn't yet any more blocks.")
+            pass
+        info("Node "+self.ip+" hasn't yet any more blocks.")
     def submit(self,block):
         self.avsend(b'SUB'+block.pack())
     def wait_for_mine(self):
         while True:
             if self.inUse:
                 continue
-            if self.conn.recv(4)==b'MINE':
-                print("Mining request received.")
+            if select.select(cs_list, [], [], 0.1)[0] and self.conn.recv(4)==b'MINE':
+                info("Mining request received.")
                 tmp=Block('')
                 tmp.unpack(self.avrec())
                 return tmp
@@ -374,7 +380,7 @@ def save():
         if used and b.validate():
             data.append(b.pack())
     if(len(data)==0):
-        print("ERROR: cannot save empty blockchain.")
+        error("cannot save empty blockchain.")
         return
     file=open("data.python_blockchain",'w')
     file.write(str(data))
@@ -382,7 +388,11 @@ def save():
 def load():
     global blocks, daughter_blocks
     file=open("data.python_blockchain",'r')
-    data=eval(file.read())
+    try:
+        data=eval(file.read())
+    except:
+        error("the file storing the blockchain is corrupted.  Cannot load corrupted file.")
+        return
     file.close()
     orphans=[]
     for i in data:
@@ -407,19 +417,19 @@ def load():
             daughter_blocks.append(b)
             orphans_removed+=1
         else:
-            print("Found an invalid block saved!")
+            error("Found an invalid block saved!")
     if orphans_removed<len(orphans):
-        print("WARNING: Orphaned blocks were left over!")
+        warn("Orphaned blocks were left over!")
     for i in t_blks:
         if not i.validate():
-            print("ERROR: saved blockchain is INVALID.")
+            error("saved blockchain is INVALID.")
             return
     if len(blocks)<len(t_blks):
         if len(blocks)>0 and blocks[len(blocks)-1].hash!=t_blks[len(t_blks)-1].hash:
-            print("WARNING: Saved blockchain isn't the same as the one loaded.")
+            warn("Saved blockchain isn't the same as the one loaded.")
         blocks=t_blks
     else:
-        print("Blockchain loaded is longer or same size as the saved chain.")
+        warn("Blockchain loaded is longer or same size as the saved chain.")
 def get_nodes():
     for i in ips:
         if not (running_node and i in ['127.0.0.1', 'localhost']):
@@ -436,10 +446,10 @@ def get_nodes():
             return
 def checker_thread():
     while True:
-        print("Downloading...")
+        info("Downloading...")
         old_len=len(nodes)
         if len(nodes)==0:
-            print("Ran out of nodes...")
+            warn("Ran out of nodes...")
             get_nodes()
         for i in nodes:
             i.downloadAll()
@@ -448,8 +458,8 @@ def checker_thread():
         if full_node:
             for i in range(old_len, len(nodes)):
                 threading.Thread(target=node_mining_thread, args=(i,)).start()
-        print("Done.")
-        time.sleep(600)  # ten minutes
+        info("Done downloading new blocks.")
+        time.sleep(120)  # two minutes
 solved=True
 times=[]
 difficulties=[]
@@ -462,7 +472,7 @@ def mine_remote(block):
         rml=[]
         for i in cs_list:
             try:
-                print("Giving job to "+str(i.getpeername()))
+                info("Giving mining job to "+str(i.getpeername()))
                 reply=block.pack()
                 reply=b'MINE'+len(reply).to_bytes(8, 'little')+reply
                 i.sendall(reply)
@@ -498,7 +508,7 @@ def start(pri_key):
     global myPrivateKey,myPublicKey
     myPrivateKey=pri_key
     myPublicKey=HASH(myPrivateKey.to_bytes(32, 'little'),128)
-    print("Public Key: "+hex(myPublicKey))
+    info("Public Key: "+hex(myPublicKey))
     if full_node:
         for port in ports:
             th=threading.Thread(target=server, args=(port,))
@@ -506,7 +516,7 @@ def start(pri_key):
     try:
         load()
     except:
-        print("Starting for the first time?")
+        warn("Starting for the first time?")
     time.sleep(0.1)
     # Let's re-download the blocks from time to time.
     threading.Thread(target=checker_thread).start()
