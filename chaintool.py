@@ -1,4 +1,5 @@
-import time, os, hashlib, threading, socket, pickle
+import time, os, hashlib, threading, socket
+from ecdsa import SigningKey, VerifyingKey, NIST384p
 ips=['127.0.0.1','192.168.1.132', '68.4.20.23']
 ports=[19200]#, 19201] # a common baud rate XD
 node_limit=20
@@ -528,20 +529,23 @@ def start(pri_key):
     threading.Thread(target=checker_thread).start()
     #while True:
         #pass
-if __name__=="__main__":
-    tmp=0
+def get_key():
+    
+    tmp=b''
     try:
-        j=open("pk.int",'r')
-        tmp=int(j.read())
+        j=open("pk.int",'rb')
+        tmp=j.read()
         j.close()
     except:
         print("No private key file!")
-        if input("Type 'Y' to generate a new key, 'n' to enter a key manually ")=='Y':
-            tmp=int.from_bytes(os.urandom(32),'little')
+        if input("Type 'Y' to generate a new key")=='Y':
+            tmp=SigningKey.generate().to_der()
         else:
-            tmp=eval(input("NEW KEY > "))
-        j=open("pk.int",'w')
-        j.write(str(tmp))
+            raise Exception("No key generated")
+        j=open("pk.int",'wb')
+        j.write(tmp)
         j.close()
         print("Saved.")
-    start(tmp)
+    return tmp
+if __name__=="__main__":
+    start(get_key())
