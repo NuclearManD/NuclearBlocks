@@ -14,6 +14,7 @@ millis = lambda: int(round(time.time() * 1000))
 FirstBlock=None
 TopBlock=None
 bits=256
+maxBlockSize=4096
 allblocks=[]
 def HASH(data, bits=bits):
     j=hashlib.sha256(data)
@@ -33,11 +34,11 @@ def warn(x):
 def error(x):
     print("[ERROR] "+x)
 class Block:
-    def __init__(self, data, miner=0, lsblock=None, difficulty=None):
+    def __init__(self, data, miner=b'', lsblock=None, difficulty=None):
         global allblocks
         self.data=data
         self.lsblock=lsblock
-        self.miner=miner
+        self.miner=myPublicKey
         if difficulty!=None:
             self.difficulty=min(int(((2**bits)-1)/difficulty),(2**bits)-1)
         if self.lsblock==None:
@@ -60,7 +61,7 @@ class Block:
         allblocks.append(self)
     def gen_header(self):
         self.header=self.lshash.to_bytes(length, 'little')
-        self.header+=self.miner.to_bytes(16, 'little')
+        self.header+=self.miner
         self.header+=self.time.to_bytes(8, 'little')
         self.header+=self.difficulty.to_bytes(length, 'little')
         self.header+=self.scratch
@@ -74,8 +75,8 @@ class Block:
         data=data[length:]
         self.lshash=int.from_bytes(data[:length],'little')
         data=data[length:]
-        self.miner=int.from_bytes(data[:16],'little')
-        data=data[16:]
+        self.miner=data[:75]
+        data=data[75:]
         self.time=int.from_bytes(data[:8],'little')
         data=data[8:]
         self.difficulty=int.from_bytes(data[:length],'little')
@@ -95,6 +96,11 @@ class Block:
         self.miner=myPublicKey
         self.scratch=os.urandom(length)
         return self.validate()
+class BlockFS:
+    def __init__(self, items=[]):
+        self.items=items
+    def pack():
+        pass
 def mine(block):
     i=0
     info("Mining a new block...")
@@ -111,7 +117,7 @@ def mine(block):
     info("Took "+str(i)+" attempts to mine block with hash "+hex(block.hash))
 def createBlock(newdata):
     global TopBlock
-    if len(newdata)>4096:
+    if len(newdata)>maxBlockSize:
         error("Block too big!")
         return
     TopBlock=Block(newdata, lsblock=TopBlock)
@@ -127,9 +133,9 @@ def createDaughterBlock(newdata,cmt):
     return daughter
 def addData(data):
     global current_age, current_data
-    if len(current_data+data)<(4096-(3*length+28)):
+    if len(current_data+data)<(maxBlockSize-(3*length+28)):
         current_data+=(hex(len(data))[2:]).zfill(4)+data
-    elif len(data)<(4096-(3*length+28)):
+    elif len(data)<(maxBlockSize-(3*length+28)):
         mine_remote(Block(current_data))
         current_data=(hex(len(data))[2:]).zfill(4)+data
         current_age=millis()
@@ -514,8 +520,9 @@ def node_mining_thread(i):
 def start(pri_key):
     global myPrivateKey,myPublicKey
     myPrivateKey=pri_key
-    myPublicKey=HASH(myPrivateKey.to_bytes(32, 'little'),128)
-    info("Public Key: "+hex(myPublicKey))
+    myPublicKey=SigningKey.from_der(myPrivateKey).get_verifying_key().to_der()
+    info("Public Key: "+hex(int.from_bytes(myPublicKey,'little')))
+    #myPublicKey=int.from_bytes(myPublicKey,'little')
     if full_node:
         for port in ports:
             th=threading.Thread(target=server, args=(port,))
