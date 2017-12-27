@@ -2,7 +2,7 @@ import chaintool, threading, time
 print("Finding hashrate....")
 chaintool.node_limit=1 # accept only from one node
 chaintool.nodes=[]
-chaintool.start(0x115200)
+chaintool.start()
 millis=chaintool.millis
 b=chaintool.Block("getHashes/s",difficulty=int((2**chaintool.bits)/800000))
 t=millis()
