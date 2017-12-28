@@ -8,6 +8,7 @@ import nuclear.blocks.client.ClientIface;
 import nuclear.blocks.wallet.ui.WalletGUI;
 import nuclear.slithercrypto.ECDSAKey;
 import nuclear.slithercrypto.blockchain.SavedChain;
+import nuclear.slitherge.top.io;
 
 public class Main {
 	String basepath=System.getProperty("user.home")+"/AppData/Roaming/NuclearBlocks";
@@ -29,18 +30,21 @@ public class Main {
 			key=new ECDSAKey();
 			key.save(keypath);
 		}
+		io.println("Got key...");
 		try {
 			iface=new ClientIface(nodeAdr);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 		chain=new SavedChain(blockchainStorePlace);
+		io.println("Loading GUI");
 		WalletGUI gui=new WalletGUI(chain,key,iface);
 		gui.addressLabel.setText("Address: "+Base64.getEncoder().encodeToString(key.getPublicKey()).replaceAll("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgA", "@"));
 		gui.coinCountLabel.setText("Please wait, connecting to network...");
-		
+		gui.setVisible(true);
 		iface.downloadBlockchain(chain);
-		gui.coinCountLabel.setText("Balance: "+chain.getCoinBalance(key.getPublicKey())+" KiB");
+		gui.balance=chain.getCoinBalance(key.getPublicKey());
+		gui.coinCountLabel.setText("Balance: "+gui.balance+" KiB");
 	}
 	
 	public static void main(String[] args) {

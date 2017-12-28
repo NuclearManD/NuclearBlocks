@@ -3,7 +3,6 @@ package nuclear.blocks.wallet.ui;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.JLabel;
-import javax.swing.JScrollPane;
 import javax.swing.JToolBar;
 
 import nuclear.blocks.client.ClientIface;
@@ -13,25 +12,31 @@ import nuclear.slithercrypto.blockchain.Transaction;
 
 import javax.swing.JButton;
 import javax.swing.JFileChooser;
-import javax.swing.JList;
-import javax.swing.JTextPane;
+import javax.swing.JOptionPane;
 import java.awt.event.ActionListener;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
+import java.util.Base64;
 import java.awt.event.ActionEvent;
+import javax.swing.JTextArea;
+import javax.swing.JTextPane;
 
 @SuppressWarnings("serial")
 public class WalletGUI extends JFrame implements ActionListener{
 	public JToolBar toolBar;
 	public JLabel coinCountLabel;
-	public JLabel addressLabel;
+	public JTextPane addressLabel;
 	
 	final JFileChooser fc = new JFileChooser();
 	BlockchainBase man;
 	
 	ECDSAKey key;
 	private ClientIface iface;
+	
+	byte[] lasthash;
+	
+	public double balance=0.0;
+	
 	public WalletGUI(BlockchainBase man, ECDSAKey key,ClientIface iface) {
 		this.man=man;
 		this.key=key;
@@ -45,7 +50,10 @@ public class WalletGUI extends JFrame implements ActionListener{
 		getContentPane().add(panel);
 		panel.setLayout(null);
 		
-		addressLabel = new JLabel("error");
+		addressLabel = new JTextPane();
+		addressLabel.setEditable(false);
+		addressLabel.setText("Error : no address?!?!?!");
+		addressLabel.setBackground(null);
 		addressLabel.setBounds(10, 11, 764, 21);
 		panel.add(addressLabel);
 		
@@ -66,12 +74,59 @@ public class WalletGUI extends JFrame implements ActionListener{
 		btnDownload.setActionCommand("DOWNLOAD");
 		btnDownload.addActionListener(this);
 		toolBar.add(btnDownload);
-		setVisible(true);
+
+		
+		JLabel tmp = new JLabel("SEND COINS");
+		tmp.setBounds(10, 107, 109, 22);
+		getContentPane().add(tmp);
+		
+		JTextArea txtrAddress = new JTextArea();
+		txtrAddress.setText("Address Here");
+		txtrAddress.setBounds(10, 135, 764, 22);
+		getContentPane().add(txtrAddress);
+		
+		JTextArea kibAmt = new JTextArea();
+		kibAmt.setText("KiB Amount");
+		kibAmt.setBounds(10, 168, 109, 22);
+		getContentPane().add(kibAmt);
+		
+		JButton btnSend = new JButton("SEND");
+		
+		
+		btnSend.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent arg0) {
+				byte[] adr=decodeAddress(txtrAddress.getText());
+				if(!man.isActive(adr))
+					if(JOptionPane.showConfirmDialog(null, "This address doesn't look like a valid address. It may be valid, but you might want to check it.\nIt is possible that your KiB will be lost forever if you send and the address is wrong. Are you sure you want to send?")!=JOptionPane.YES_OPTION)
+						return;
+				double toSend=Double.parseDouble(kibAmt.getText());
+				if(toSend+1.09>balance) {
+					JOptionPane.showMessageDialog(null, "Error: Transaction will fail.\n You do not have enough KiB to send.");
+					return;
+				}
+				if(JOptionPane.showConfirmDialog(null, "Confirm you want to send "+toSend+" KiB")!=JOptionPane.YES_OPTION)
+					return;
+				iface.uploadTransaction(Transaction.sendCoins(key.getPublicKey(), adr, key.getPrivateKey(), toSend));
+			}
+		});
+		
+		
+		btnSend.setBounds(10, 201, 89, 23);
+		getContentPane().add(btnSend);
+	}
+
+	protected byte[] decodeAddress(String text) {
+		text=text.replaceAll("@", "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgA");
+		return Base64.getDecoder().decode(text);
 	}
 
 	@Override
 	public void actionPerformed(ActionEvent e) {
 		if(e.getActionCommand()=="UPLOAD") {
+			if(1.09>balance) {
+				JOptionPane.showMessageDialog(null, "Error: Transaction will fail.\n You do not have enough KiB to send that.");
+				return;
+			}
 			JFileChooser jfc = new JFileChooser(System.getProperty("user.home"));
 			int retval=jfc.showOpenDialog(this);
 			if(retval==JFileChooser.APPROVE_OPTION) {
@@ -84,8 +139,15 @@ public class WalletGUI extends JFrame implements ActionListener{
 					for(int i=0;i<length;i++) {
 						buffer[i]=(byte) stream.read();
 					}
-					iface.uploadPair(Transaction.makeFile(key.getPublicKey(), key.getPrivateKey(), buffer, man.getBlockByIndex(man.length()-1).getHash(), file.getName()));
 					stream.close();
+					lasthash=new byte[32];
+					if(man.length()>0)
+						lasthash=man.getBlockByIndex(man.length()-1).getHash();
+					new Thread(new Runnable() {
+					     public void run() {
+					    	 iface.uploadPair(Transaction.makeFile(key.getPublicKey(), key.getPrivateKey(), buffer, lasthash, file.getName()));
+					     }
+					}).start();
 				} catch (Exception e1) {
 					e1.printStackTrace();
 				}
