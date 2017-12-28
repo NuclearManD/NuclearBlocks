@@ -8,9 +8,10 @@ import nuclear.blocks.client.ClientIface;
 import nuclear.blocks.wallet.ui.WalletGUI;
 import nuclear.slithercrypto.ECDSAKey;
 import nuclear.slithercrypto.blockchain.SavedChain;
+import nuclear.slithercrypto.blockchain.Transaction;
 import nuclear.slitherge.top.io;
 
-public class Main {
+public class Main implements Runnable {
 	String basepath=System.getProperty("user.home")+"/AppData/Roaming/NuclearBlocks";
 	String keypath=basepath+"/keys/main.key";
 	String blockchainStorePlace=basepath+"/blockchain/";
@@ -45,10 +46,22 @@ public class Main {
 		iface.downloadBlockchain(chain);
 		gui.balance=chain.getCoinBalance(key.getPublicKey());
 		gui.coinCountLabel.setText("Balance: "+gui.balance+" KiB");
+		new Thread(this).start();
 	}
 	
 	public static void main(String[] args) {
 		new Main();
+	}
+
+	public void run() {
+		while(true) {
+			try {
+				Thread.sleep(1000*60*15);
+			} catch (InterruptedException e) {
+				break;
+			}
+			io.println("Downloaded "+iface.downloadBlockchain(chain)+" new blocks.");
+		}
 	}
 	
 }

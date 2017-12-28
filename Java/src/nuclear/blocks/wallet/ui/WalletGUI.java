@@ -113,6 +113,7 @@ public class WalletGUI extends JFrame implements ActionListener{
 				if(JOptionPane.showConfirmDialog(null, "Confirm you want to send "+toSend+" KiB")!=JOptionPane.YES_OPTION)
 					return;
 				iface.uploadTransaction(Transaction.sendCoins(key.getPublicKey(), adr, key.getPrivateKey(), toSend));
+				balance-=toSend+1.09;
 			}
 		});
 		
@@ -151,6 +152,7 @@ public class WalletGUI extends JFrame implements ActionListener{
 					new Thread(new Runnable() {
 					     public void run() {
 					    	 iface.uploadPair(Transaction.makeFile(key.getPublicKey(), key.getPrivateKey(), buffer, lasthash, file.getName()));
+					    	 balance-=1.09;
 					     }
 					}).start();
 				} catch (Exception e1) {
