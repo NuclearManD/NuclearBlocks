@@ -22,7 +22,7 @@ public class Main implements Runnable {
 	
 	ClientIface iface;
 	SavedChain chain;
-	
+	WalletGUI gui;
 	public Main() {
 		if(new File(keypath).exists())
 			key=new ECDSAKey(keypath);
@@ -39,7 +39,7 @@ public class Main implements Runnable {
 		}
 		chain=new SavedChain(blockchainStorePlace);
 		io.println("Loading GUI");
-		WalletGUI gui=new WalletGUI(chain,key,iface);
+		gui=new WalletGUI(chain,key,iface);
 		gui.addressLabel.setText("Address: "+Base64.getEncoder().encodeToString(key.getPublicKey()).replaceAll("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgA", "@"));
 		gui.coinCountLabel.setText("Please wait, connecting to network...");
 		gui.setVisible(true);
@@ -61,6 +61,8 @@ public class Main implements Runnable {
 				break;
 			}
 			io.println("Downloaded "+iface.downloadBlockchain(chain)+" new blocks.");
+			gui.balance=chain.getCoinBalance(key.getPublicKey());
+			gui.coinCountLabel.setText("Balance: "+gui.balance+" KiB");
 		}
 	}
 	
