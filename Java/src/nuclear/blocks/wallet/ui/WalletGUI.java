@@ -26,6 +26,8 @@ public class WalletGUI extends JFrame implements ActionListener{
 	public JToolBar toolBar;
 	public JLabel coinCountLabel;
 	public JTextPane addressLabel;
+	JTextArea txtrAddress;
+	JTextArea kibAmt;
 	
 	final JFileChooser fc = new JFileChooser();
 	BlockchainBase man;
@@ -33,14 +35,18 @@ public class WalletGUI extends JFrame implements ActionListener{
 	ECDSAKey key;
 	private ClientIface iface;
 	
-	byte[] lasthash;
 	
 	public double balance=0.0;
 	
-	public WalletGUI(BlockchainBase man, ECDSAKey key,ClientIface iface) {
-		this.man=man;
-		this.key=key;
-		this.iface=iface;
+	String path;
+	byte[] buffer;
+	File file;
+	byte[] lasthash;
+	
+	public WalletGUI(BlockchainBase man1, ECDSAKey key1,ClientIface iface1) {
+		this.man=man1;
+		this.key=key1;
+		this.iface=iface1;
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setBounds(20,20,800,600);
 		getContentPane().setLayout(null);
@@ -80,12 +86,12 @@ public class WalletGUI extends JFrame implements ActionListener{
 		tmp.setBounds(10, 107, 109, 22);
 		getContentPane().add(tmp);
 		
-		JTextArea txtrAddress = new JTextArea();
+		txtrAddress = new JTextArea();
 		txtrAddress.setText("Address Here");
 		txtrAddress.setBounds(10, 135, 764, 22);
 		getContentPane().add(txtrAddress);
 		
-		JTextArea kibAmt = new JTextArea();
+		kibAmt = new JTextArea();
 		kibAmt.setText("KiB Amount");
 		kibAmt.setBounds(10, 168, 109, 22);
 		getContentPane().add(kibAmt);
@@ -129,12 +135,12 @@ public class WalletGUI extends JFrame implements ActionListener{
 			JFileChooser jfc = new JFileChooser(System.getProperty("user.home"));
 			int retval=jfc.showOpenDialog(this);
 			if(retval==JFileChooser.APPROVE_OPTION) {
-				File file=jfc.getSelectedFile();
-				String path=file.getPath();
+				file=jfc.getSelectedFile();
+				path=file.getPath();
 				long length=file.length();
 				try {
 					FileInputStream stream=new FileInputStream(path);
-					byte[] buffer=new byte[(int) length];
+					buffer=new byte[(int) length];
 					for(int i=0;i<length;i++) {
 						buffer[i]=(byte) stream.read();
 					}
