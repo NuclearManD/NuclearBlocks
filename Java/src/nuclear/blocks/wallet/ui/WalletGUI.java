@@ -120,7 +120,6 @@ public class WalletGUI extends JFrame implements ActionListener{
 		return Base64.getDecoder().decode(text);
 	}
 
-	@Override
 	public void actionPerformed(ActionEvent e) {
 		if(e.getActionCommand()=="UPLOAD") {
 			if(1.09>balance) {
