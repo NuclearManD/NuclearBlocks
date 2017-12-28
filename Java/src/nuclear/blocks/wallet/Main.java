@@ -62,7 +62,7 @@ public class Main implements Runnable {
 			}
 			io.println("Downloaded "+iface.downloadBlockchain(chain)+" new blocks.");
 			gui.balance=chain.getCoinBalance(key.getPublicKey());
-			gui.coinCountLabel.setText("Balance: "+gui.balance+" KiB");
+			gui.updateBalance();
 		}
 	}
 	

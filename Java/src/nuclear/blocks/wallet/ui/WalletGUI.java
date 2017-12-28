@@ -114,6 +114,7 @@ public class WalletGUI extends JFrame implements ActionListener{
 					return;
 				iface.uploadTransaction(Transaction.sendCoins(key.getPublicKey(), adr, key.getPrivateKey(), toSend));
 				balance-=toSend+1.09;
+				updateBalance();
 			}
 		});
 		
@@ -158,9 +159,14 @@ public class WalletGUI extends JFrame implements ActionListener{
 				} catch (Exception e1) {
 					e1.printStackTrace();
 				}
+				updateBalance();
 			}
 		}else if(e.getActionCommand()=="DOWNLOAD") {
 			
 		}
+	}
+
+	public void updateBalance() {
+		coinCountLabel.setText("Balance: "+balance+" KiB");
 	}
 }
