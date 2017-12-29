@@ -154,12 +154,12 @@ public class WalletGUI extends JFrame implements ActionListener{
 					     public void run() {
 					    	 iface.uploadPair(Transaction.makeFile(key.getPublicKey(), key.getPrivateKey(), buffer, lasthash, file.getName()));
 					    	 balance-=1.09;
+							updateBalance();
 					     }
 					}).start();
 				} catch (Exception e1) {
 					e1.printStackTrace();
 				}
-				updateBalance();
 			}
 		}else if(e.getActionCommand()=="DOWNLOAD") {
 			

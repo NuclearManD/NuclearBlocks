@@ -60,6 +60,7 @@ public class Main implements Runnable {
 			} catch (InterruptedException e) {
 				break;
 			}
+			io.println("Downloading blocks...");
 			io.println("Downloaded "+iface.downloadBlockchain(chain)+" new blocks.");
 			gui.balance=chain.getCoinBalance(key.getPublicKey());
 			gui.updateBalance();
