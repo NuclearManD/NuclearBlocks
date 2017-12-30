@@ -4,12 +4,14 @@ import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.JLabel;
 import javax.swing.JToolBar;
+import javax.swing.SwingUtilities;
 
 import nuclear.blocks.client.ClientIface;
 import nuclear.blocks.wallet.Main;
 import nuclear.slithercrypto.ECDSAKey;
 import nuclear.slithercrypto.blockchain.BlockchainBase;
 import nuclear.slithercrypto.blockchain.Transaction;
+import nuclear.slitherge.top.io;
 
 import javax.swing.JButton;
 import javax.swing.JFileChooser;
@@ -17,6 +19,9 @@ import javax.swing.JOptionPane;
 import java.awt.event.ActionListener;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.Base64;
 import java.awt.event.ActionEvent;
 import javax.swing.JTextArea;
@@ -158,7 +163,28 @@ public class WalletGUI extends JFrame implements ActionListener{
 				}
 			}
 		}else if(e.getActionCommand()=="DOWNLOAD") {
-			
+			new Thread(new Runnable() {
+			    public void run() {
+			    	RemoteFileSelector selector=new RemoteFileSelector(man,key.getPublicKey());
+					if(selector.selection==null)
+						return;
+					byte[] sel=selector.selection.getDaughterHash();
+					io.println(selector.selection.toString());
+					int us = fc.showSaveDialog(null);
+					if(us==JFileChooser.APPROVE_OPTION) {
+						File file=fc.getSelectedFile();
+						io.println("Saving...");
+						try(FileOutputStream f=new FileOutputStream(file)){
+							byte[] data=iface.downloadDaughter(sel).getData();
+							f.write(data);
+						}catch (Exception e1) {
+							e1.printStackTrace();
+							// TODO: make a dialog explaining failure
+						}
+						io.println("Done writing file.");
+					}
+			    }
+			}).start();
 		}
 	}
 

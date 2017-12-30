@@ -9,19 +9,15 @@ import java.util.Arrays;
 import javax.swing.ButtonGroup;
 import javax.swing.JButton;
 import javax.swing.JFrame;
-import javax.swing.JLabel;
-import javax.swing.JList;
 import javax.swing.JRadioButton;
-import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 import javax.swing.JTree;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeModel;
+import javax.swing.tree.TreePath;
 
 import nuclear.blocks.wallet.Main;
-import nuclear.slithercrypto.ECDSAKey;
 import nuclear.slithercrypto.blockchain.Block;
-import nuclear.slithercrypto.blockchain.BlockChainManager;
 import nuclear.slithercrypto.blockchain.BlockchainBase;
 import nuclear.slithercrypto.blockchain.Transaction;
 import nuclear.slitherge.top.io;
@@ -88,7 +84,7 @@ public class RemoteFileSelector implements ActionListener{
 		rdbtnA_2.setActionCommand("ALLFILES");
 		frame.getContentPane().add(rdbtnA_2);
 		*/
-		
+		//io.println("Loaded radiobuttons...");
 		JButton btnCancel = new JButton("CANCEL");
 		btnCancel.setActionCommand("CANCEL");
 		btnCancel.addActionListener(this);
@@ -101,7 +97,7 @@ public class RemoteFileSelector implements ActionListener{
 		btnDownload.setBounds(420, 329, 104, 23);
 		btnDownload.setEnabled(false);
 		frame.getContentPane().add(btnDownload);
-		
+		//io.println("Loaded buttons...");
 		txtExtadr = new JTextField();
 		txtExtadr.setText("Other Address");
 		txtExtadr.setBounds(170, 34, 354, 20);
@@ -120,24 +116,39 @@ public class RemoteFileSelector implements ActionListener{
 		txtSearchEntry.setBounds(170, 86, 183, 20);
 		frame.getContentPane().add(txtSearchEntry);
 		txtSearchEntry.setColumns(10);
-
+		//io.println("Loaded textboxes...");
 		root=new DefaultMutableTreeNode("Unselected");
 		list = new JTree(root);
 		writeList();
 		list.setEnabled(false);
 		list.setBounds(6, 115, 518, 203);
 		frame.getContentPane().add(list);
-		
-		
+
 		frame.setVisible(true);
+		//io.println("Frame VISIBLE.");
+		String selectionName=null;
 		while((!terminate)&&frame.isDisplayable()) {
 			try {
 				Thread.sleep(20);// 50 fps
 			} catch (InterruptedException e) {
 				break;
 			}
-			if(list.getSelectionPath()!=null)
-				io.println(list.getSelectionPath().getLastPathComponent().toString());
+			TreePath q=list.getSelectionPath();
+			String str=null;
+			if(q!=null)
+				str=q.getLastPathComponent().toString();
+			if(str==null) {
+				selectionName=null;
+				btnDownload.setEnabled(false);
+			}else if(!str.equals(selectionName)) {
+				for(int i=0;i<files.length;i++)
+					if(files[i].equals(str)) {
+						selection=blocks[i];
+						selectionName=str;
+						btnDownload.setEnabled(true);
+						break;
+					}
+			}
 		}
 		frame.dispose();
 		io.println("Done");
@@ -186,6 +197,7 @@ public class RemoteFileSelector implements ActionListener{
 					this.files[i]=new String(blocks[i].getMeta(),StandardCharsets.UTF_8);
 				}
 				root.setUserObject("Some Files");
+				list.setEnabled(true);
 			}catch(Exception e123) {
 				list.clearSelection();
 				files=new String[1];
@@ -243,7 +255,7 @@ public class RemoteFileSelector implements ActionListener{
 			files[0]="No Results";
 			writeList();
 		}
-	}
+	}/*
 	public static void main(String[]args) {
 		io.println("Loading test...");
 		ECDSAKey key=new ECDSAKey();
@@ -253,7 +265,9 @@ public class RemoteFileSelector implements ActionListener{
 		RemoteFileSelector selector=new RemoteFileSelector(man,key.getPublicKey());
 		if(selector.selection==null)
 			io.println("CAnCel!");
-		else
+		else {
 			io.println(new String(selector.selection.getMeta(),StandardCharsets.UTF_8));
-	}
+			io.println(Main.encode(selector.selection.getDaughterHash()));
+		}
+	}*/
 }
