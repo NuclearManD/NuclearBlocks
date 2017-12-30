@@ -1,2 +1,4 @@
 # NuclearBlocks
-A really awesome mass storage blockchain I made
+This is a wallet for a blockchain I am actively working on.  It is designed for storing files.
+
+The currency is KiB, as in the unit of storage.
