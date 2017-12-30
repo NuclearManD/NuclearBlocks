@@ -6,6 +6,7 @@ import javax.swing.JLabel;
 import javax.swing.JToolBar;
 
 import nuclear.blocks.client.ClientIface;
+import nuclear.blocks.wallet.Main;
 import nuclear.slithercrypto.ECDSAKey;
 import nuclear.slithercrypto.blockchain.BlockchainBase;
 import nuclear.slithercrypto.blockchain.Transaction;
@@ -101,7 +102,7 @@ public class WalletGUI extends JFrame implements ActionListener{
 		
 		btnSend.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
-				byte[] adr=decodeAddress(txtrAddress.getText());
+				byte[] adr=Main.decode(txtrAddress.getText());
 				if(!man.isActive(adr))
 					if(JOptionPane.showConfirmDialog(null, "This address doesn't look like a valid address. It may be valid, but you might want to check it.\nIt is possible that your KiB will be lost forever if you send and the address is wrong. Are you sure you want to send?")!=JOptionPane.YES_OPTION)
 						return;
@@ -121,11 +122,6 @@ public class WalletGUI extends JFrame implements ActionListener{
 		
 		btnSend.setBounds(10, 201, 89, 23);
 		getContentPane().add(btnSend);
-	}
-
-	protected byte[] decodeAddress(String text) {
-		text=text.replaceAll("@", "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgA");
-		return Base64.getDecoder().decode(text);
 	}
 
 	public void actionPerformed(ActionEvent e) {

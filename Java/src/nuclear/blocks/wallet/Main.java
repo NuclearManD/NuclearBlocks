@@ -40,7 +40,7 @@ public class Main implements Runnable {
 		chain=new SavedChain(blockchainStorePlace);
 		io.println("Loading GUI");
 		gui=new WalletGUI(chain,key,iface);
-		gui.addressLabel.setText("Address: "+Base64.getEncoder().encodeToString(key.getPublicKey()).replaceAll("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgA", "@"));
+		gui.addressLabel.setText("Address: "+encode(key.getPublicKey()));
 		gui.coinCountLabel.setText("Please wait, connecting to network...");
 		gui.setVisible(true);
 		iface.downloadBlockchain(chain);
@@ -49,6 +49,13 @@ public class Main implements Runnable {
 		new Thread(this).start();
 	}
 	
+	public static String encode(byte[] publicKey) {
+		return Base64.getEncoder().encodeToString(publicKey).replaceAll("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgA", "@");
+	}
+	public static byte[] decode(String text) {
+		text=text.replaceAll("@", "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgA");
+		return Base64.getDecoder().decode(text);
+	}
 	public static void main(String[] args) {
 		new Main();
 	}
