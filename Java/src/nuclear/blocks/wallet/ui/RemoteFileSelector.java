@@ -162,7 +162,6 @@ public class RemoteFileSelector implements ActionListener{
 		}
 		model.reload();
 	}
-	@Override
 	public void actionPerformed(ActionEvent e) {
 		String c=e.getActionCommand();
 		if(c=="UPD") {
