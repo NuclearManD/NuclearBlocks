@@ -29,7 +29,7 @@ public class RemoteFileSelector implements ActionListener{
 	private JButton btnDownload;
 	private JTree list;
 	
-	Transaction selection=null;
+	public Transaction selection=null;
 	private boolean terminate=true;
 	
 	BlockchainBase man;

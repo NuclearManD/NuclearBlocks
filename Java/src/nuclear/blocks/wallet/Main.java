@@ -8,7 +8,6 @@ import nuclear.blocks.client.ClientIface;
 import nuclear.blocks.wallet.ui.WalletGUI;
 import nuclear.slithercrypto.ECDSAKey;
 import nuclear.slithercrypto.blockchain.SavedChain;
-import nuclear.slithercrypto.blockchain.Transaction;
 import nuclear.slitherge.top.io;
 
 public class Main implements Runnable {
@@ -18,7 +17,7 @@ public class Main implements Runnable {
 	
 	ECDSAKey key;
 	
-	String nodeAdr="localhost";
+	String nodeAdr="68.5.147.51";
 	
 	ClientIface iface;
 	SavedChain chain;

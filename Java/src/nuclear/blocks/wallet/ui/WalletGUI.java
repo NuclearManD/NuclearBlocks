@@ -1,10 +1,20 @@
 package nuclear.blocks.wallet.ui;
 
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+
+import javax.swing.JButton;
+import javax.swing.JFileChooser;
 import javax.swing.JFrame;
-import javax.swing.JPanel;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JTextArea;
+import javax.swing.JTextPane;
 import javax.swing.JToolBar;
-import javax.swing.SwingUtilities;
 
 import nuclear.blocks.client.ClientIface;
 import nuclear.blocks.wallet.Main;
@@ -13,41 +23,31 @@ import nuclear.slithercrypto.blockchain.BlockchainBase;
 import nuclear.slithercrypto.blockchain.Transaction;
 import nuclear.slitherge.top.io;
 
-import javax.swing.JButton;
-import javax.swing.JFileChooser;
-import javax.swing.JOptionPane;
-import java.awt.event.ActionListener;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.util.Base64;
-import java.awt.event.ActionEvent;
-import javax.swing.JTextArea;
-import javax.swing.JTextPane;
-
 @SuppressWarnings("serial")
 public class WalletGUI extends JFrame implements ActionListener{
+    protected int mining;
 	public JToolBar toolBar;
 	public JLabel coinCountLabel;
 	public JTextPane addressLabel;
-	JTextArea txtrAddress;
-	JTextArea kibAmt;
+	public JTextArea txtrAddress;
+	public JTextArea kibAmt;
+	protected JLabel miningData;
+	protected JLabel tmp;
+	protected JButton btnUpload,btnDownload,btnSend;
 	
-	final JFileChooser fc = new JFileChooser();
-	BlockchainBase man;
+	protected final JFileChooser fc = new JFileChooser();
+	protected BlockchainBase man;
 	
-	ECDSAKey key;
-	private ClientIface iface;
+	protected ECDSAKey key;
+	protected ClientIface iface;
 	
 	
 	public double balance=0.0;
 	
-	String path;
-	byte[] buffer;
-	File file;
-	byte[] lasthash;
+	protected String path;
+	protected byte[] buffer;
+	protected File file;
+	protected byte[] lasthash;
 	
 	public WalletGUI(BlockchainBase man1, ECDSAKey key1,ClientIface iface1) {
 		this.man=man1;
@@ -70,25 +70,29 @@ public class WalletGUI extends JFrame implements ActionListener{
 		panel.add(addressLabel);
 		
 		coinCountLabel = new JLabel("you have money!");
-		coinCountLabel.setBounds(10, 37, 764, 21);
+		coinCountLabel.setBounds(10, 37, 432, 21);
 		panel.add(coinCountLabel);
+		
+		miningData=new JLabel("Not currently mining (safe to exit)");
+		miningData.setBounds(474, 38, 300, 20);
+		panel.add(miningData);
 		
 		toolBar = new JToolBar();
 		toolBar.setBounds(0, 0, 784, 23);
 		getContentPane().add(toolBar);
 		
-		JButton btnUpload = new JButton("Upload");
+		btnUpload = new JButton("Upload");
 		btnUpload.addActionListener(this);
 		btnUpload.setActionCommand("UPLOAD");
 		toolBar.add(btnUpload);
 		
-		JButton btnDownload = new JButton("Download");
+		btnDownload = new JButton("Download");
 		btnDownload.setActionCommand("DOWNLOAD");
 		btnDownload.addActionListener(this);
 		toolBar.add(btnDownload);
 
 		
-		JLabel tmp = new JLabel("SEND COINS");
+		tmp = new JLabel("SEND COINS");
 		tmp.setBounds(10, 107, 109, 22);
 		getContentPane().add(tmp);
 		
@@ -102,8 +106,9 @@ public class WalletGUI extends JFrame implements ActionListener{
 		kibAmt.setBounds(10, 168, 109, 22);
 		getContentPane().add(kibAmt);
 		
-		JButton btnSend = new JButton("SEND");
+		btnSend = new JButton("SEND");
 		
+		miningUpd();
 		
 		btnSend.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
@@ -152,10 +157,15 @@ public class WalletGUI extends JFrame implements ActionListener{
 					if(man.length()>0)
 						lasthash=man.getBlockByIndex(man.length()-1).getHash();
 					new Thread(new Runnable() {
-					     public void run() {
+
+						public void run() {
+					    	 mining++;
+					    	 miningUpd();
 					    	 iface.uploadPair(Transaction.makeFile(key.getPublicKey(), key.getPrivateKey(), buffer, lasthash, file.getName()));
 					    	 balance-=1.09;
-							updateBalance();
+							 updateBalance();
+							 mining--;
+					    	 miningUpd();
 					     }
 					}).start();
 				} catch (Exception e1) {
@@ -179,13 +189,20 @@ public class WalletGUI extends JFrame implements ActionListener{
 							f.write(data);
 						}catch (Exception e1) {
 							e1.printStackTrace();
-							// TODO: make a dialog explaining failure
+							JOptionPane.showMessageDialog(null, "Error: Download failed!");
 						}
-						io.println("Done writing file.");
 					}
 			    }
 			}).start();
 		}
+	}
+
+	public void miningUpd() {
+		if(mining==0)
+			miningData.setText("Not currently mining (safe to exit)");
+		else
+			miningData.setText(mining+" operations running. (do not exit)");
+		miningData.paintImmediately(miningData.getVisibleRect());
 	}
 
 	public void updateBalance() {
