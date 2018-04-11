@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 
 import javax.swing.ButtonGroup;
+import javax.swing.GrayFilter;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JRadioButton;
@@ -76,14 +77,14 @@ public class RemoteFileSelector implements ActionListener{
 		rdbtnA_1.addActionListener(this);
 		rdbtnA_1.setActionCommand("HASHFILE");
 		frame.getContentPane().add(rdbtnA_1);
-		/*
+		//*
 		JRadioButton rdbtnA_2 = new JRadioButton("All files");
 		buttonGroup.add(rdbtnA_2);
 		rdbtnA_2.setBounds(6, 85, 109, 23);
 		rdbtnA_2.addActionListener(this);
 		rdbtnA_2.setActionCommand("ALLFILES");
 		frame.getContentPane().add(rdbtnA_2);
-		*/
+		//*/
 		//io.println("Loaded radiobuttons...");
 		JButton btnCancel = new JButton("CANCEL");
 		btnCancel.setActionCommand("CANCEL");
@@ -237,11 +238,44 @@ public class RemoteFileSelector implements ActionListener{
 			writeList();
 		}else if(c.equals("ALLFILES")) {
 			root.setUserObject("All Files");
-			txtExtadr.setEnabled(false);
-			txtHash.setEnabled(false);
-			txtSearchEntry.setEnabled(true);
+			try {
+				txtExtadr.setEnabled(false);
+				txtHash.setEnabled(false);
+				txtSearchEntry.setEnabled(true);
+				boolean notfound=true;
+				files=new String[0];
+				blocks=new Transaction[0];
+				for(int i=0;i<man.length();i++) {
+					Block blk=man.getBlockByIndex(i);
+					for(int j=0;j<blk.numTransactions();j++) {
+						Transaction t=blk.getTransaction(j);
+						if(new String(t.getMeta(),StandardCharsets.UTF_8).contains(txtSearchEntry.getText())&&t.type==Transaction.TRANSACTION_STORE_FILE){
+							notfound=false;
+							append(files,new String(t.getMeta(),StandardCharsets.UTF_8));
+							append(blocks,t);
+						}
+					}
+				}
+				files=new String[1];
+				if(notfound) {
+					list.setEnabled(false);
+					files[0]="Not a File";
+				}else {
+					list.setEnabled(true);
+				}
+			}catch(Exception e123) {
+				list.clearSelection();
+				files=new String[1];
+				files[0]= "Invalid Hash";
+				list.setEnabled(false);
+				e123.printStackTrace();
+			}
 			writeList();
-			list.setEnabled(true);
+			//txtExtadr.setEnabled(false);
+			//txtHash.setEnabled(false);
+			//txtSearchEntry.setEnabled(true);
+			//writeList();
+			//list.setEnabled(true);
 		}else if(c.equals("CANCEL")) {
 			terminate=true;
 			selection=null;
@@ -269,4 +303,12 @@ public class RemoteFileSelector implements ActionListener{
 			io.println(Main.encode(selector.selection.getDaughterHash()));
 		}
 	}*/
+	private void append(String[] ar, String obj) {
+		ar=Arrays.copyOf(ar, ar.length+1);
+		ar[ar.length-1]=obj;
+	}
+	private void append(Transaction[] ar, Transaction obj) {
+		ar=Arrays.copyOf(ar, ar.length+1);
+		ar[ar.length-1]=obj;
+	}
 }
