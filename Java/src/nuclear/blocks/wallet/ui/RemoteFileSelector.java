@@ -104,6 +104,7 @@ public class RemoteFileSelector implements ActionListener{
 		txtExtadr.setBounds(170, 34, 354, 20);
 		frame.getContentPane().add(txtExtadr);
 		txtExtadr.setColumns(10);
+		txtExtadr.addActionListener(this);
 		txtExtadr.setActionCommand("UPD");
 		
 		txtHash = new JTextField();
@@ -111,6 +112,7 @@ public class RemoteFileSelector implements ActionListener{
 		txtHash.setBounds(170, 60, 354, 20);
 		frame.getContentPane().add(txtHash);
 		txtHash.setColumns(10);
+		txtHash.addActionListener(this);
 		txtHash.setActionCommand("UPD");
 		
 		txtSearchEntry = new JTextField();
@@ -118,6 +120,7 @@ public class RemoteFileSelector implements ActionListener{
 		txtSearchEntry.setBounds(170, 86, 183, 20);
 		frame.getContentPane().add(txtSearchEntry);
 		txtSearchEntry.setColumns(10);
+		txtSearchEntry.addActionListener(this);
 		txtSearchEntry.setActionCommand("UPD");
 		//io.println("Loaded textboxes...");
 		root=new DefaultMutableTreeNode("Unselected");
@@ -167,10 +170,11 @@ public class RemoteFileSelector implements ActionListener{
 	}
 	public void actionPerformed(ActionEvent e) {
 		String c=e.getActionCommand();
+		io.println("command: "+c);
 		if(c=="UPD") {
 			c=last_cmd;
-		}
-		last_cmd=c;
+		}else
+			last_cmd=c;
 		if(c.equals("MYFILES")) {
 			txtExtadr.setEnabled(false);
 			txtHash.setEnabled(false);
