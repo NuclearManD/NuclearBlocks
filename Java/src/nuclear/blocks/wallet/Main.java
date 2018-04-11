@@ -17,7 +17,7 @@ public class Main implements Runnable {
 	
 	ECDSAKey key;
 	
-	String nodeAdr="68.5.147.51";
+	String nodeAdr="68.4.23.94";
 	
 	ClientIface iface;
 	SavedChain chain;
