@@ -42,9 +42,7 @@ public class Main implements Runnable {
 		gui.addressLabel.setText("Address: "+encode(key.getPublicKey()));
 		gui.coinCountLabel.setText("Please wait, connecting to network...");
 		gui.setVisible(true);
-		iface.downloadBlockchain(chain);
 		gui.balance=chain.getCoinBalance(key.getPublicKey());
-		gui.coinCountLabel.setText("Balance: "+gui.balance+" KiB");
 		new Thread(this).start();
 	}
 	
@@ -61,15 +59,30 @@ public class Main implements Runnable {
 
 	public void run() {
 		while(true) {
+			io.println("Downloading blocks...");
+			gui.btnReconnect.setEnabled(false);
+			int q;
+			do{
+				q=iface.downloadBlockchain(chain);
+				gui.btnReconnect.setEnabled(true);
+				while(!gui.selReconnect){
+					try {
+						Thread.sleep(20);
+					} catch (InterruptedException e) {
+						break;
+					}
+				}
+				gui.selReconnect=false;
+				gui.btnReconnect.setEnabled(false);
+			}while(q==-1);
+			io.println("Downloaded "+q+" new blocks.");
+			gui.balance=chain.getCoinBalance(key.getPublicKey());
+			gui.updateBalance();
 			try {
 				Thread.sleep(1000*60*15);
 			} catch (InterruptedException e) {
 				break;
 			}
-			io.println("Downloading blocks...");
-			io.println("Downloaded "+iface.downloadBlockchain(chain)+" new blocks.");
-			gui.balance=chain.getCoinBalance(key.getPublicKey());
-			gui.updateBalance();
 		}
 	}
 	

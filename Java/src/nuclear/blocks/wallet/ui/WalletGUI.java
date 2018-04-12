@@ -33,7 +33,7 @@ public class WalletGUI extends JFrame implements ActionListener{
 	public JTextArea kibAmt;
 	protected JLabel miningData;
 	protected JLabel tmp;
-	protected JButton btnUpload,btnDownload,btnSend;
+	public JButton btnUpload,btnDownload,btnSend, btnReconnect;
 	
 	protected final JFileChooser fc = new JFileChooser();
 	protected BlockchainBase man;
@@ -48,6 +48,7 @@ public class WalletGUI extends JFrame implements ActionListener{
 	protected byte[] buffer;
 	protected File file;
 	protected byte[] lasthash;
+	public boolean selReconnect;
 	
 	public WalletGUI(BlockchainBase man1, ECDSAKey key1,ClientIface iface1) {
 		this.man=man1;
@@ -90,6 +91,11 @@ public class WalletGUI extends JFrame implements ActionListener{
 		btnDownload.setActionCommand("DOWNLOAD");
 		btnDownload.addActionListener(this);
 		toolBar.add(btnDownload);
+		
+		btnReconnect = new JButton("Reconnect");
+		btnReconnect.setActionCommand("RECONNECT");
+		btnReconnect.addActionListener(this);
+		toolBar.add(btnReconnect);
 
 		
 		tmp = new JLabel("SEND COINS");
@@ -195,6 +201,8 @@ public class WalletGUI extends JFrame implements ActionListener{
 					}
 			    }
 			}).start();
+		}else if(e.getActionCommand()=="RECONNECT"){
+			selReconnect=true;
 		}
 	}
 
