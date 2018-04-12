@@ -17,7 +17,7 @@ public class Main implements Runnable {
 	
 	ECDSAKey key;
 	
-	String nodeAdr="68.4.23.94";
+	public static String nodeAdr="68.4.23.94";
 	
 	ClientIface iface;
 	SavedChain chain;
@@ -64,16 +64,18 @@ public class Main implements Runnable {
 			int q;
 			do{
 				q=iface.downloadBlockchain(chain);
-				gui.btnReconnect.setEnabled(true);
-				while(!gui.selReconnect){
-					try {
-						Thread.sleep(20);
-					} catch (InterruptedException e) {
-						break;
+				if(q==-1){
+					gui.btnReconnect.setEnabled(true);
+					while(!gui.selReconnect){
+						try {
+							Thread.sleep(20);
+						} catch (InterruptedException e) {
+							break;
+						}
 					}
+					gui.selReconnect=false;
+					gui.btnReconnect.setEnabled(false);
 				}
-				gui.selReconnect=false;
-				gui.btnReconnect.setEnabled(false);
 			}while(q==-1);
 			io.println("Downloaded "+q+" new blocks.");
 			gui.balance=chain.getCoinBalance(key.getPublicKey());

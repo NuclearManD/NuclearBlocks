@@ -202,6 +202,7 @@ public class WalletGUI extends JFrame implements ActionListener{
 			    }
 			}).start();
 		}else if(e.getActionCommand()=="RECONNECT"){
+			btnReconnect.setEnabled(false);
 			selReconnect=true;
 		}
 	}
