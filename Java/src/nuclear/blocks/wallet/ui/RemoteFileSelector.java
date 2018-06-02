@@ -157,7 +157,6 @@ public class RemoteFileSelector implements ActionListener{
 			}
 		}
 		frame.dispose();
-		io.println("Done");
 	}
 	private void writeList() {
 		DefaultTreeModel model = (DefaultTreeModel) list.getModel();
@@ -170,7 +169,6 @@ public class RemoteFileSelector implements ActionListener{
 	}
 	public void actionPerformed(ActionEvent e) {
 		String c=e.getActionCommand();
-		io.println("command: "+c);
 		if(c=="UPD") {
 			c=last_cmd;
 		}else
