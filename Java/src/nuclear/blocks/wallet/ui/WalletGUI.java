@@ -25,13 +25,12 @@ import nuclear.slitherge.top.io;
 
 @SuppressWarnings("serial")
 public class WalletGUI extends JFrame implements ActionListener{
-    protected int mining;
 	public JToolBar toolBar;
 	public JLabel coinCountLabel;
 	public JTextPane addressLabel;
 	public JTextArea txtrAddress;
 	public JTextArea kibAmt;
-	protected JLabel miningData;
+	public JLabel networkLabel;
 	protected JLabel tmp;
 	public JButton btnUpload,btnDownload,btnSend, btnReconnect;
 	
@@ -74,9 +73,9 @@ public class WalletGUI extends JFrame implements ActionListener{
 		coinCountLabel.setBounds(10, 37, 432, 21);
 		panel.add(coinCountLabel);
 		
-		miningData=new JLabel("Not currently mining (safe to exit)");
-		miningData.setBounds(474, 38, 300, 20);
-		panel.add(miningData);
+		networkLabel=new JLabel("[no activity yet...]");
+		networkLabel.setBounds(474, 38, 300, 20);
+		panel.add(networkLabel);
 		
 		toolBar = new JToolBar();
 		toolBar.setBounds(0, 0, 784, 23);
@@ -114,7 +113,6 @@ public class WalletGUI extends JFrame implements ActionListener{
 		
 		btnSend = new JButton("SEND");
 		
-		miningUpd();
 		
 		btnSend.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
@@ -166,13 +164,9 @@ public class WalletGUI extends JFrame implements ActionListener{
 					new Thread(new Runnable() {
 
 						public void run() {
-					    	 mining++;
-					    	 miningUpd();
 					    	 iface.uploadPair(Transaction.makeFile(key.getPublicKey(), key.getPrivateKey(), buffer, lasthash, file.getName()));
 					    	 balance-=1.09;
 							 updateBalance();
-							 mining--;
-					    	 miningUpd();
 					     }
 					}).start();
 				} catch (Exception e1) {
@@ -207,15 +201,9 @@ public class WalletGUI extends JFrame implements ActionListener{
 		}
 	}
 
-	public void miningUpd() {
-		if(mining==0)
-			miningData.setText("Not currently mining (safe to exit)");
-		else
-			miningData.setText(mining+" operations running. (do not exit)");
-		miningData.paintImmediately(miningData.getVisibleRect());
-	}
 
 	public void updateBalance() {
+		balance=man.getCoinBalance(key.getPublicKey());
 		coinCountLabel.setText("Balance: "+balance+" KiB");
 	}
 }
