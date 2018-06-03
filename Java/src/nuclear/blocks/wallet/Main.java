@@ -59,7 +59,7 @@ public class Main implements Runnable {
 
 	public void run() {
 		while(true) {
-			io.println("Downloading blocks...");
+			gui.coinCountLabel.setText("Syncing with network...");
 			gui.btnReconnect.setEnabled(false);
 			int q;
 			do{
@@ -81,7 +81,7 @@ public class Main implements Runnable {
 			gui.balance=chain.getCoinBalance(key.getPublicKey());
 			gui.updateBalance();
 			try {
-				Thread.sleep(1000*60*15);
+				Thread.sleep(1000*15);
 			} catch (InterruptedException e) {
 				break;
 			}
