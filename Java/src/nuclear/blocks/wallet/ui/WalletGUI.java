@@ -140,7 +140,7 @@ public class WalletGUI extends JFrame implements ActionListener{
 
 	public void actionPerformed(ActionEvent e) {
 		if(e.getActionCommand()=="UPLOAD") {
-			if(1.09>balance) {
+			if(.6>balance) {
 				if(JOptionPane.showConfirmDialog(null, "Error: Transaction will fail.\n You do not have enough KiB to send that, try anyway?")!=JOptionPane.YES_OPTION)
 						return;
 				

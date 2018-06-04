@@ -31,11 +31,7 @@ public class Main implements Runnable {
 			key.save(keypath);
 		}
 		io.println("Got key...");
-		try {
-			iface=new ClientIface(nodeAdr);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+		iface=new ClientIface(nodeAdr);
 		chain=new SavedChain(blockchainStorePlace);
 		io.println("Loading GUI");
 		gui=new WalletGUI(chain,key,iface);
